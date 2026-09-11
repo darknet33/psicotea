@@ -1,0 +1,20 @@
+{
+  "name": "PsicoTea",
+  "short_name": "PsicoTea",
+  "description": "Sistema de gestión integral para el centro PsicoTea",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fafafa",
+  "theme_color": "#6366f1",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
