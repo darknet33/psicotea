@@ -829,7 +829,35 @@ El desarrollo de Sistema_PsicoTea deberá seguir estos principios:
 
 ---
 
-# 25. MVP
+# 25. Identidad de marca
+
+La plataforma usa la identidad visual del centro "PsicoTea". Los colores oficiales y su rol de uso son:
+
+```
+Colores de marca
+  - PISCO:  #2A2960 (navy profundo) - color primario de la marca
+  - TEA:    #A0C84F (verde menta)   - color secundario / acento de marca
+
+Complementarios del logo
+  - Pink Brand:  #F7386B
+  - Yellow Brand:#FDCA1F
+  - Blue Brand:  #209CDC
+  - Green Brand: #A3CC52
+```
+
+Reglas de uso:
+
+- **PISCO `#2A2960`**: color primario (botones, enlaces, elementos activos, marca). Soporta texto claro encima (contraste AA).
+- **TEA `#A0C84F`**: acento secundario. Al ser un verde claro, el texto encima debe ser oscuro (PISCO o casi negro).
+- **Complementarios**: acentos e identidad del logo. El amarillo `#FDCA1F`, el verde `#A3CC52` y TEA usan texto oscuro; el rosa `#F7386B` y el azul `#209CDC` usan texto claro.
+- En la UI estos colores viven como **tokens CSS** en `fronted/src/app/globals.css` (tokens semanticos `--primary`, `--secondary`, `--accent`, `--success`, `--warning`, `--error`, `--info` y tokens de marca `--color-brand-*`) y se documentan en la spec `ui-design-system`.
+- El **logo oficial** del centro esta disponible como asset en `fronted/public/logo.jpg` y debe servirse desde la carpeta `public` del frontend (p. ej. `/logo.jpg`). En las vistas de marca (login, sidebar, landing) se usa este archivo, no el mark "Ps" por defecto.
+
+> Estas decisiones son la fuente de verdad para cualquier rediseño futuro: skills o herramientas de diseño deben consumir los tokens de `globals.css` y la spec `ui-design-system`, nunca hex hardcodeados en componentes.
+
+---
+
+# 27. MVP
 
 La primera versión deberá priorizar las siguientes funcionalidades:
 
@@ -930,7 +958,7 @@ La primera versión deberá priorizar las siguientes funcionalidades:
 
 ---
 
-# 26. Funcionalidades futuras
+# 28. Funcionalidades futuras
 
 El sistema deberá quedar preparado para incorporar posteriormente:
 
@@ -993,11 +1021,17 @@ El sistema deberá quedar preparado para incorporar posteriormente:
 * Copias de seguridad avanzadas.
 * Auditoría avanzada.
 
+### Portal para padres
+
+* Link público donde el padre, madre o tutor consulta el historial y datos de sus niños validándose con su carnet (documento de identidad).
+* El portal expondrá únicamente información autorizada y no requerirá credenciales de la plataforma.
+* No constituye un registro de usuarios: los padres no inician sesión en el sistema.
+
 Estas funcionalidades deberán analizarse y especificarse antes de su implementación.
 
 ---
 
-# 27. Resultado esperado
+# 29. Resultado esperado
 
 Al finalizar el proyecto, **Sistema_PsicoTea** deberá proporcionar al centro una plataforma web centralizada para gestionar:
 
