@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  // Creates the database if it doesn't exist
+}
+
+enum Role {
+  ADMIN
+  ESPECIALISTA
+  PERSONAL_ADMINISTRATIVO
+}
+
+enum EnrollmentStatus {
+  ACTIVO
+  INACTIVO
+  RETIRADO
+}
+
+enum AttendanceStatus {
+  PRESENTE
+  AUSENTE
+  JUSTIFICADO
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  CHEQUE
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  password      String
+  name          String
+  lastName      String
+  role          Role      @default(PERSONAL_ADMINISTRATIVO)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  specialist         Specialist?
+  staff              Staff?
+  refreshTokens      RefreshToken[]
+  attendanceRecords  Attendance[]  @relation("AttendanceRegisteredBy")
+  activityRecords    Activity[]    @relation("ActivitySpecialist")
+  reportRecords      Report[]      @relation("ReportSpecialist")
+  expensesCreated    Expense[]
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique @db.VarChar(512)
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  @@index([userId])
+}
+
+model Child {
+  id               Int           @id @default(autoincrement())
+  name             String
+  lastName         String
+  dateOfBirth      DateTime
+  sex              String
+  photo            String?
+  enrollmentDate   DateTime
+  isActive         Boolean       @default(true)
+  parentName       String
+  parentLastName   String
+  parentRelationship String
+  parentPhone      String
+  parentEmail      String?
+  parentCarnet     String
+  enrollments      Enrollment[]
+  attendances      Attendance[]
+  activities       Activity[]
+  reports          Report[]
+  payments         Payment[]
+  specialistId     Int?
+  specialist       Specialist?   @relation(fields: [specialistId], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  @@index([specialistId])
+  @@index([isActive])
+}
+
+model Enrollment {
+  id          Int             @id @default(autoincrement())
+  childId     Int
+  child       Child           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime?
+  status      EnrollmentStatus @default(ACTIVO)
+  monthlyFee  Decimal         @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  payments    Payment[]
+  @@index([childId])
+  @@index([status])
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  childId       Int
+  child         Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  enrollmentId  Int?
+  enrollment    Enrollment?   @relation(fields: [enrollmentId], references: [id])
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentDate   DateTime
+  method        PaymentMethod
+  reference     String?
+  description   String?
+  periodStart   DateTime
+  periodEnd     DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  @@index([childId])
+  @@index([paymentDate])
+  @@index([enrollmentId])
+}
+
+model Attendance {
+  id          Int             @id @default(autoincrement())
+  childId     Int
+  child       Child           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  date        DateTime        @db.Date
+  status      AttendanceStatus
+  notes       String?
+  registeredById Int
+  registeredBy User           @relation("AttendanceRegisteredBy", fields: [registeredById], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  @@unique([childId, date])
+  @@index([childId])
+  @@index([date])
+  @@index([registeredById])
+}
+
+model Activity {
+  id            Int      @id @default(autoincrement())
+  childId       Int
+  child         Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  specialistId  Int
+  specialist    User     @relation("ActivitySpecialist", fields: [specialistId], references: [id])
+  date          DateTime @db.Date
+  title         String
+  description   String?
+  duration      Int?     // minutes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([childId])
+  @@index([specialistId])
+  @@index([date])
+}
+
+model Report {
+  id            Int      @id @default(autoincrement())
+  childId       Int
+  child         Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  specialistId  Int
+  specialist    User     @relation("ReportSpecialist", fields: [specialistId], references: [id])
+  title         String
+  content       String
+  periodStart   DateTime
+  periodEnd     DateTime
+  isDraft       Boolean  @default(true)
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([childId])
+  @@index([specialistId])
+  @@index([createdAt])
+}
+
+model Specialist {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professionalId String   @unique
+  specialty     String
+  licenseNumber String?
+  phone         String?
+  address       String?
+  isActive      Boolean   @default(true)
+  children      Child[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Staff {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId    String   @unique
+  position      String
+  department    String?
+  hireDate      DateTime
+  salary        Decimal? @db.Decimal(10, 2)
+  phone         String?
+  address       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id])
+  amount      Decimal  @db.Decimal(10, 2)
+  date        DateTime @db.Date
+  description String?
+  receiptUrl  String?
+  createdById Int
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([categoryId])
+  @@index([date])
+  @@index([createdById])
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  color       String?   // hex color for UI
+  isActive    Boolean   @default(true)
+  expenses    Expense[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
