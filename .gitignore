@@ -34,6 +34,12 @@ yarn-error.log*
 # Testing
 coverage/
 
+# Local agent tooling configs
+backend/.agents/
+backend/.claude/
+backend/.cursor/
+backend/.devin/
+
 # Misc
 *.tsbuildinfo
 next-env.d.ts
