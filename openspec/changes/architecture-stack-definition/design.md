@@ -20,6 +20,15 @@
 | Validación Frontend | zod | latest | Type-safe, esquemas reutilizables |
 | Iconos | Lucide React | latest | Consistentes, ligeros, SVG |
 
+## Decisiones de Diseño
+
+### Acceso a la plataforma (sin registro público)
+
+- La plataforma **no tiene registro libre**. La creación de usuarios es exclusiva del rol `ADMIN` mediante el CRUD `POST /users` (con rol obligatorio).
+- No existe el endpoint público `POST /auth/register`, ni página de registro en el frontend.
+- Los padres/madres/tutores **no son usuarios del sistema**; sus datos residen en el registro del niño (`Child`).
+- Portal para padres (consulta de historial por carnet en link público) → **funcionalidad futura**, no parte del MVP.
+
 ## Estructura de Carpetas
 
 ### Backend (NestJS)
@@ -28,7 +37,7 @@
 backend/
 ├── src/
 │   ├── auth/                   # Módulo de autenticación
-│   │   ├── auth.controller.ts  # Endpoints: login, register, refresh
+│   │   ├── auth.controller.ts  # Endpoints: login, refresh, me, logout, password
 │   │   ├── auth.service.ts     # Lógica de auth, hashing, tokens
 │   │   ├── auth.module.ts      # Configuración del módulo
 │   │   ├── jwt.strategy.ts     # Estrategia JWT Passport

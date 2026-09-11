@@ -6,18 +6,22 @@ Sistema de autenticación JWT para control de acceso a la plataforma Sistema_Psi
 
 ## Requirements
 
-### REQ-AUTH-001: User Registration
+### REQ-AUTH-001: User Creation (Admin Only)
 
-- **Endpoint**: POST /auth/register
+La plataforma NO tiene registro público. Los usuarios solo son creados por un ADMIN mediante el CRUD de usuarios. El endpoint `POST /auth/register` no existe.
+
+- **Endpoint**: POST /users
+- **Header**: Authorization: Bearer `<access_token>` (rol ADMIN requerido)
 - **Request Body**:
   - `email`: string (required, unique, valid email format)
   - `password`: string (required, min 8 chars, uppercase, lowercase, number)
   - `name`: string (required)
   - `lastName`: string (required)
-  - `role`: enum [ADMIN, ESPECIALISTA, PERSONAL_ADMINISTRATIVO] (default: PERSONAL_ADMINISTRATIVO)
-- **Response**: 201 Created { id, email, name, lastName, role }
+  - `role`: enum [ADMIN, ESPECIALISTA, PERSONAL_ADMINISTRATIVO] (required)
+- **Response**: 201 Created `{ id, email, name, lastName, role, isActive }`
 - **Errors**:
   - 400: Invalid data
+  - 403: Usuario sin rol ADMIN
   - 409: Email already exists
 - **Security**: Password hashed with bcrypt (10 rounds)
 
@@ -77,7 +81,8 @@ Sistema de autenticación JWT para control de acceso a la plataforma Sistema_Psi
 
 ### REQ-AUTH-008: Protected Routes
 
-- All routes except /auth/login, /auth/register, and public routes require valid JWT
+- Todas las rutas excepto `/auth/login` y las rutas públicas (portal/landing) requieren un JWT válido
+- No existe endpoint público de registro de usuarios
 - JwtAuthGuard applied globally or per-route
 - Invalid/missing token returns 401 Unauthorized
 
@@ -91,7 +96,7 @@ Sistema de autenticación JWT para control de acceso a la plataforma Sistema_Psi
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | /auth/register | No | Register new user |
+| POST | /users | ADMIN | Create user (no public registration, role required) |
 | POST | /auth/login | No | Login and get tokens |
 | POST | /auth/refresh | Refresh Token | Refresh access token |
 | GET | /auth/me | Access Token | Get current user |

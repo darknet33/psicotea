@@ -4,36 +4,36 @@
 
 ### Backend
 
-- [ ] 1.1 Inicializar proyecto NestJS con TypeScript
+- [x] 1.1 Inicializar proyecto NestJS con TypeScript
   ```bash
   npm i -g @nestjs/cli
   nest new backend
   ```
-- [ ] 1.2 Configurar Prisma ORM
+- [x] 1.2 Configurar Prisma ORM
   ```bash
   npm install prisma @prisma/client
   npx prisma init
   ```
-- [ ] 1.3 Definir schema.prisma con modelos iniciales (User, Role, Child, Enrollment, Payment, Attendance, Activity, Report, Specialist, Staff, Expense)
-- [ ] 1.4 Configurar variables de entorno (.env.local, .env.produccion)
-- [ ] 1.5 Crear módulo Prisma (prisma.service.ts, prisma.module.ts)
-- [ ] 1.6 Ejecutar primera migración
+- [x] 1.3 Definir schema.prisma con modelos iniciales (User, Role, Child, Enrollment, Payment, Attendance, Activity, Report, Specialist, Staff, Expense)
+- [x] 1.4 Configurar variables de entorno (.env.local, .env.produccion)
+- [x] 1.5 Crear módulo Prisma (prisma.service.ts, prisma.module.ts)
+- [x] 1.6 Ejecutar primera migración
   ```bash
   npx prisma migrate dev
   ```
 
 ### Frontend
 
-- [ ] 1.7 Inicializar proyecto Next.js 14+ con App Router y TypeScript
+- [x] 1.7 Inicializar proyecto Next.js 14+ con App Router y TypeScript
   ```bash
   npx create-next-app@latest fronted --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
   ```
-- [ ] 1.8 Configurar PWA con next-pwa
+- [x] 1.8 Configurar PWA (manifest + service worker; compatible con Turbopack de Next 16)
   ```bash
   npm install next-pwa
   ```
-- [ ] 1.9 Configurar Tailwind CSS con tema personalizado
-- [ ] 1.10 Configurar variables de entorno frontend (.env.local, .env.produccion)
+- [x] 1.9 Configurar Tailwind CSS con tema personalizado
+- [x] 1.10 Configurar variables de entorno frontend (.env.local, .env.produccion)
 
 ---
 
@@ -41,43 +41,45 @@
 
 ### Auth Module
 
-- [ ] 2.1 Crear módulo Auth (auth.module.ts)
-- [ ] 2.2 Implementar DTOs (login.dto.ts, register.dto.ts)
-- [ ] 2.3 Implementar AuthService:
+- [x] 2.1 Crear módulo Auth (auth.module.ts)
+- [x] 2.2 Implementar DTOs (login.dto.ts, register.dto.ts)
+- [x] 2.3 Implementar AuthService:
   - register() - Hash password, crear usuario
   - login() - Validar credenciales, generar tokens
   - refresh() - Validar refresh token, generar nuevo access token
   - logout() - Invalidar refresh token
-- [ ] 2.4 Implementar AuthController:
+- [x] 2.4 Implementar AuthController:
   - POST /auth/register
   - POST /auth/login
   - POST /auth/refresh
   - GET /auth/me
   - POST /auth/logout
-- [ ] 2.5 Implementar JWT Strategy (jwt.strategy.ts)
-- [ ] 2.6 Implementar JwtAuthGuard
-- [ ] 2.7 Configurar JWT_SECRET y JWT_EXPIRATION en .env
+- [x] 2.5 Implementar JWT Strategy (jwt.strategy.ts)
+- [x] 2.6 Implementar JwtAuthGuard
+- [x] 2.7 Configurar JWT_SECRET y JWT_EXPIRATION en .env
 
 ### Users Module
 
-- [ ] 2.8 Crear módulo Users (users.module.ts)
-- [ ] 2.9 Implementar UsersService:
+- [x] 2.8 Crear módulo Users (users.module.ts)
+- [x] 2.9 Implementar UsersService:
   - findAll(), findOne(), findByEmail()
   - create(), update(), remove()
-- [ ] 2.10 Implementar UsersController:
+- [x] 2.10 Implementar UsersController:
   - GET /users
   - GET /users/:id
   - POST /users
   - PATCH /users/:id
   - DELETE /users/:id
-- [ ] 2.11 Seed initial admin user
+- [x] 2.11 Seed initial admin user
 
 ### Roles & Permissions
 
-- [ ] 2.12 Implementar RolesGuard
-- [ ] 2.13 Implementar @Roles() decorator
-- [ ] 2.14 Aplicar roles a endpoints según spec
-- [ ] 2.15 Test de控制 de acceso por rol
+- [x] 2.12 Implementar RolesGuard
+- [x] 2.13 Implementar @Roles() decorator
+- [x] 2.14 Aplicar roles a endpoints según spec
+- [x] 2.15 Test de acceso por rol
+- [x] 2.16 Eliminar POST /auth/register y RegisterDto (sin registro público; altas solo por ADMIN vía POST /users)
+- [x] 2.17 Verificar alta de usuarios vía POST /users (admin-only)
 
 ---
 
@@ -85,27 +87,28 @@
 
 ### Auth Pages
 
-- [ ] 3.1 Configurar Axios con interceptores JWT (lib/axios.ts)
-- [ ] 3.2 Crear servicios de auth (lib/auth.ts):
-  - login(), register(), logout(), refreshToken(), getCurrentUser()
-- [ ] 3.3 Implementar Zustand auth store (stores/auth-store.ts)
-- [ ] 3.4 Crear página de Login (app/(auth)/login/page.tsx)
-- [ ] 3.5 Crear página de Register (app/(auth)/register/page.tsx)
-- [ ] 3.6 Implementar ProtectedRoute component
-- [ ] 3.7 Implementar RoleBasedRoute component
+- [x] 3.1 Configurar Axios con interceptores JWT (lib/axios.ts)
+- [x] 3.2 Crear servicios de auth (lib/auth.ts):
+  - login(), logout(), refreshToken(), getCurrentUser() (sin register: registro público eliminado)
+- [x] 3.3 Implementar Zustand auth store (stores/auth-store.ts)
+- [x] 3.4 Crear página de Login (app/(auth)/login/page.tsx)
+- [x] 3.5 Crear página de Register (app/(auth)/register/page.tsx) y eliminarla en 3.15
+- [x] 3.6 Implementar ProtectedRoute component
+- [x] 3.7 Implementar RoleBasedRoute component
 
 ### Layout
 
-- [ ] 3.8 Instalar shadcn/ui
+- [x] 3.8 Instalar shadcn/ui
   ```bash
   npx shadcn-ui@latest init
   ```
-- [ ] 3.9 Instalar componentes base de shadcn/ui
-- [ ] 3.10 Crear Sidebar component (components/layout/sidebar.tsx)
-- [ ] 3.11 Crear Header component (components/layout/header.tsx)
-- [ ] 3.12 Crear MobileNav component (components/layout/mobile-nav.tsx)
-- [ ] 3.13 Crear Dashboard layout (app/(dashboard)/layout.tsx)
-- [ ] 3.14 Crear Root layout con providers (app/layout.tsx)
+- [x] 3.9 Instalar componentes base de shadcn/ui
+- [x] 3.10 Crear Sidebar component (components/layout/sidebar.tsx)
+- [x] 3.11 Crear Header component (components/layout/header.tsx)
+- [x] 3.12 Crear MobileNav component (exportado desde components/layout/sidebar.tsx)
+- [x] 3.13 Crear Dashboard layout (app/(dashboard)/layout.tsx)
+- [x] 3.14 Crear Root layout con providers (app/layout.tsx)
+- [x] 3.15 Eliminar página Register (app/(auth)/register) y método register() del auth-store; quitar enlace de registro en login
 
 ---
 
@@ -113,37 +116,37 @@
 
 ### Children Module
 
-- [ ] 4.1 Crear módulo Children (children.module.ts)
-- [ ] 4.2 Implementar ChildrenService:
-  - findAll(), findOne(), findByParent()
-  - create(), update(), remove()
-  - search(), filterByStatus()
-- [ ] 4.3 Implementar ChildrenController:
-  - GET /children
+- [x] 4.1 Crear módulo Children (`children.module.ts`, registrado en app.module.ts)
+- [x] 4.2 Implementar ChildrenService:
+  - findAll(), findOne(), create(), update(), remove()
+  - search(), filtros por isActive y specialistId
+  - (findByParent() reemplazado por tutor embebido: parentName/parentLastName/parentRelationship/parentPhone/parentEmail/parentCarnet)
+- [x] 4.3 Implementar ChildrenController:
+  - GET /children (ADMIN, PERSONAL, ESPECIALISTA→solo asignados)
   - GET /children/:id
   - POST /children
   - PATCH /children/:id
   - DELETE /children/:id
-- [ ] 4.4 Implementar DTOs y validación
+- [x] 4.4 Implementar DTOs y validación (CreateChildDto, UpdateChildDto, QueryChildrenDto)
 
 ### Enrollments Module
 
-- [ ] 4.5 Crear módulo Enrollments
-- [ ] 4.6 Implementar EnrollmentsService:
+- [x] 4.5 Crear módulo Enrollments
+- [x] 4.6 Implementar EnrollmentsService:
   - findAll(), findOne(), findByChild()
-  - create(), updateStatus()
-- [ ] 4.7 Implementar EnrollmentsController
-- [ ] 4.8 Implementar DTOs (CreateEnrollmentDto, UpdateEnrollmentDto)
+  - create(), update() (endDate automático al dejar de ser ACTIVO)
+- [x] 4.7 Implementar EnrollmentsController (GET, GET /:id, GET /child/:childId, POST, PATCH, roles ADMIN/PERSONAL)
+- [x] 4.8 Implementar DTOs (CreateEnrollmentDto, UpdateEnrollmentDto)
 
 ### Payments Module
 
-- [ ] 4.9 Crear módulo Payments
-- [ ] 4.10 Implementar PaymentsService:
+- [x] 4.9 Crear módulo Payments
+- [x] 4.10 Implementar PaymentsService:
   - findAll(), findOne(), findByChild()
   - create(), findByPeriod()
-  - getPendingPayments(), getPaymentHistory()
-- [ ] 4.11 Implementar PaymentsController
-- [ ] 4.12 Implementar DTOs y validación
+  - getPendingPayments() (agrega periodos adeudados por niño vía inscripciones ACTIVAS)
+- [x] 4.11 Implementar PaymentsController (GET, GET /:id, GET /child/:childId, GET /period, GET /pending, POST, roles ADMIN/PERSONAL)
+- [x] 4.12 Implementar DTOs y validación (CreatePaymentDto, UpdatePaymentDto)
 
 ---
 
@@ -151,26 +154,26 @@
 
 ### Children Pages
 
-- [ ] 5.1 Crear página de lista de niños (children/page.tsx)
-- [ ] 5.2 Crear componente DataTable para niños
-- [ ] 5.3 Crear página de registro de niño (children/new/page.tsx)
-- [ ] 5.4 Crear formulario de niño (components/forms/child-form.tsx)
-- [ ] 5.5 Crear página de detalle/expediente (children/[id]/page.tsx)
-- [ ] 5.6 Implementar búsqueda y filtros
+- [x] 5.1 Crear página de lista de niños (children/page.tsx)
+- [x] 5.2 Crear componente DataTable para niños
+- [x] 5.3 Crear página de registro de niño (children/new/page.tsx)
+- [x] 5.4 Crear formulario de niño (components/forms/child-form.tsx)
+- [x] 5.5 Crear página de detalle/expediente (children/[id]/page.tsx)
+- [x] 5.6 Implementar búsqueda y filtros
 
 ### Enrollments Pages
 
-- [ ] 5.7 Crear página de inscripciones (enrollments/page.tsx)
-- [ ] 5.8 Crear formulario de inscripción
-- [ ] 5.9 Crear página de detalle de inscripción
-- [ ] 5.10 Implementar cambio de estado (Activo/Inactivo/Retirado)
+- [x] 5.7 Crear página de inscripciones (enrollments/page.tsx)
+- [x] 5.8 Crear formulario de inscripción
+- [x] 5.9 Crear página de detalle de inscripción
+- [x] 5.10 Implementar cambio de estado (Activo/Inactivo/Retirado)
 
 ### Payments Pages
 
-- [ ] 5.11 Crear página de pagos (payments/page.tsx)
-- [ ] 5.12 Crear formulario de pago
-- [ ] 5.13 Crear vista de pagos pendientes
-- [ ] 5.14 Implementar historial de pagos por niño
+- [x] 5.11 Crear página de pagos (payments/page.tsx)
+- [x] 5.12 Crear formulario de pago
+- [x] 5.13 Crear vista de pagos pendientes
+- [x] 5.14 Implementar historial de pagos por niño
 
 ---
 
