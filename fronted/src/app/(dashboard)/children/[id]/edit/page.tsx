@@ -32,12 +32,16 @@ export default function EditChildPage() {
           sex: child.sex,
           enrollmentDate: child.enrollmentDate,
           isActive: child.isActive,
-          parentName: child.parentName,
-          parentLastName: child.parentLastName,
-          parentRelationship: child.parentRelationship,
-          parentPhone: child.parentPhone,
-          parentEmail: child.parentEmail ?? undefined,
-          parentCarnet: child.parentCarnet,
+          tutors: child.tutors.map((tutor) => ({
+            id: tutor.id,
+            name: tutor.name,
+            lastName: tutor.lastName,
+            relationship: tutor.relationship,
+            phone: tutor.phone,
+            email: tutor.email ?? undefined,
+            carnet: tutor.carnet,
+            isPrimary: tutor.isPrimary,
+          })),
           specialistId: child.specialistId ?? undefined,
         });
       } catch (err) {

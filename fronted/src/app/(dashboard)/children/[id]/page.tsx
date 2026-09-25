@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { EnrollmentForm } from "@/components/forms/enrollment-form";
 import { PaymentForm } from "@/components/forms/payment-form";
-import { formatDate, formatPrice } from "@/lib/format";
+import { formatAge, formatDate, formatPrice } from "@/lib/format";
 import { getChild, removeChild, type ChildDetail } from "@/lib/api/children";
 import { getErrorMessage } from "@/lib/axios";
 import { useAuthStore } from "@/stores/auth-store";
@@ -172,6 +172,7 @@ export default function ChildDetailPage() {
           <CardContent className="space-y-1 text-sm">
             <p><span className="text-muted-foreground">Nombre:</span> {child.name} {child.lastName}</p>
             <p><span className="text-muted-foreground">Fecha de nacimiento:</span> {formatDate(child.dateOfBirth)}</p>
+            <p><span className="text-muted-foreground">Edad:</span> {formatAge(child.dateOfBirth)}</p>
             <p><span className="text-muted-foreground">Sexo:</span> {child.sex}</p>
             <p><span className="text-muted-foreground">Inscripción:</span> {formatDate(child.enrollmentDate)}</p>
             <p><span className="text-muted-foreground">Especialista:</span> {specialistName ?? "Sin asignar"}</p>
@@ -180,15 +181,38 @@ export default function ChildDetailPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tutor / responsable</CardTitle>
-            <CardDescription>Contacto del adulto responsable del niño.</CardDescription>
+            <CardTitle className="text-base">Tutores / responsables</CardTitle>
+            <CardDescription>Adultos responsables del niño.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p><span className="text-muted-foreground">Nombre:</span> {child.parentName} {child.parentLastName}</p>
-            <p><span className="text-muted-foreground">Parentesco:</span> {child.parentRelationship}</p>
-            <p><span className="text-muted-foreground">Teléfono:</span> {child.parentPhone}</p>
-            <p><span className="text-muted-foreground">Email:</span> {child.parentEmail ?? "—"}</p>
-            <p><span className="text-muted-foreground">Carnet:</span> {child.parentCarnet}</p>
+          <CardContent className="space-y-4">
+            {child.tutors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin tutores registrados.</p>
+            ) : (
+              child.tutors.map((tutor) => (
+                <div key={tutor.id} className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium">
+                      {tutor.name} {tutor.lastName}
+                    </p>
+                    {tutor.isPrimary && <Badge variant="success">Principal</Badge>}
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Parentesco:</span> {tutor.relationship}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Celular/WhatsApp:</span> {tutor.phone}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Email:</span> {tutor.email ?? "—"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Carnet:</span> {tutor.carnet}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

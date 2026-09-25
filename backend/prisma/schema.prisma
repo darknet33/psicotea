@@ -72,23 +72,44 @@ model Child {
   photo            String?
   enrollmentDate   DateTime
   isActive         Boolean       @default(true)
-  parentName       String
-  parentLastName   String
-  parentRelationship String
-  parentPhone      String
-  parentEmail      String?
-  parentCarnet     String
   enrollments      Enrollment[]
   attendances      Attendance[]
   activities       Activity[]
   reports          Report[]
   payments         Payment[]
+  tutors           ChildTutor[]
   specialistId     Int?
   specialist       Specialist?   @relation(fields: [specialistId], references: [id])
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   @@index([specialistId])
   @@index([isActive])
+}
+
+model Tutor {
+  id        Int         @id @default(autoincrement())
+  name      String
+  lastName  String
+  phone     String
+  email     String?
+  carnet    String      @unique
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  children  ChildTutor[]
+}
+
+model ChildTutor {
+  childId      Int
+  child        Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  tutorId      Int
+  tutor        Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  relationship String
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@id([childId, tutorId])
+  @@index([childId])
+  @@index([tutorId])
 }
 
 model Enrollment {

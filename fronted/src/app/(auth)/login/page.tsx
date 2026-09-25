@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,11 +31,25 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email");
+    const password = params.get("password");
+    if (email) setValue("email", email);
+    if (password) setValue("password", password);
+  }, [setValue]);
+
+  function onSubmitForm(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void handleSubmit(onSubmit)(event);
+  }
 
   async function onSubmit(values: LoginValues) {
     try {
@@ -66,7 +80,7 @@ export default function LoginPage() {
         </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={onSubmitForm} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input

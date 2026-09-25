@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChildSelect } from "@/components/forms/child-select";
+import { DateSelects } from "@/components/forms/date-selects";
 import { createPayment } from "@/lib/api/payments";
 import { currentMonthInputValue, todayInputValue } from "@/lib/format";
 import { getErrorMessage } from "@/lib/axios";
@@ -145,9 +146,19 @@ export function PaymentForm({
               {errors.amount && <p className="text-sm text-error">{errors.amount.message}</p>}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="paymentDate">Fecha de pago</Label>
-              <Input id="paymentDate" type="date" {...register("paymentDate")} aria-invalid={Boolean(errors.paymentDate)} />
+              <Controller
+                control={control}
+                name="paymentDate"
+                render={({ field }) => (
+                  <DateSelects
+                    value={field.value}
+                    onChange={field.onChange}
+                    invalid={Boolean(errors.paymentDate)}
+                  />
+                )}
+              />
               {errors.paymentDate && (
                 <p className="text-sm text-error">{errors.paymentDate.message}</p>
               )}

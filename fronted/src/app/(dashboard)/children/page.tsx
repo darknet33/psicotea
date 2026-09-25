@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { listChildren } from "@/lib/api/children";
-import { formatDate } from "@/lib/format";
+import { formatAge } from "@/lib/format";
 import { getErrorMessage } from "@/lib/axios";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Child } from "@/types/child";
@@ -57,18 +57,28 @@ export default function ChildrenPage() {
     },
     {
       key: "birth",
-      header: "Nacimiento",
-      cell: (child) => formatDate(child.dateOfBirth),
+      header: "Edad",
+      cell: (child) => formatAge(child.dateOfBirth),
     },
     {
       key: "parent",
       header: "Tutor",
-      cell: (child) => (
-        <div>
-          <p>{child.parentName} {child.parentLastName}</p>
-          <p className="text-xs text-muted-foreground">{child.parentPhone}</p>
-        </div>
-      ),
+      cell: (child) => {
+        const tutor =
+          child.tutors.find((t) => t.isPrimary) ?? child.tutors[0];
+        if (!tutor) return <span className="text-muted-foreground">—</span>;
+        return (
+          <div>
+            <p>
+              {tutor.name} {tutor.lastName}
+              {tutor.isPrimary ? null : (
+                <span className="text-xs text-muted-foreground"> · Princip.</span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">{tutor.phone}</p>
+          </div>
+        );
+      },
     },
     {
       key: "status",

@@ -31,6 +31,35 @@ export function formatDate(iso?: string | null, fallback = "—"): string {
   }).format(new Date(iso));
 }
 
+export function formatAge(iso?: string | null, fallback = "—"): string {
+  if (!iso) return fallback;
+  const birth = new Date(iso);
+  if (Number.isNaN(birth.getTime())) return fallback;
+
+  const now = new Date();
+  let years = now.getFullYear() - birth.getFullYear();
+  let months = now.getMonth() - birth.getMonth();
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  if (now.getDate() < birth.getDate()) {
+    months -= 1;
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+  }
+
+  const yearText = `${years} ${years === 1 ? "año" : "años"}`;
+  const monthText = `${months} ${months === 1 ? "mes" : "meses"}`;
+
+  if (years <= 0) return monthText;
+  return `${yearText} ${monthText}`;
+}
+
 export function toDateInputValue(iso?: string | null): string {
   if (!iso) return "";
   const p = partsInTz(new Date(iso));

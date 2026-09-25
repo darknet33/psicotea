@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
@@ -7,7 +10,9 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  ValidateNested,
 } from 'class-validator';
+import { ChildTutorDto } from './child-tutor.dto';
 
 export class UpdateChildDto {
   @IsOptional()
@@ -23,8 +28,8 @@ export class UpdateChildDto {
   dateOfBirth?: string;
 
   @IsOptional()
-  @IsIn(['M', 'F', 'Masculino', 'Femenino'], {
-    message: 'El sexo debe ser M, F, Masculino o Femenino',
+  @IsIn(['Varón', 'Mujer'], {
+    message: 'El sexo debe ser Varón o Mujer',
   })
   sex?: string;
 
@@ -41,28 +46,11 @@ export class UpdateChildDto {
   isActive?: boolean;
 
   @IsOptional()
-  @IsString()
-  parentName?: string;
-
-  @IsOptional()
-  @IsString()
-  parentLastName?: string;
-
-  @IsOptional()
-  @IsString()
-  parentRelationship?: string;
-
-  @IsOptional()
-  @IsString()
-  parentPhone?: string;
-
-  @IsOptional()
-  @IsEmail({}, { message: 'El email del tutor debe ser un email válido' })
-  parentEmail?: string;
-
-  @IsOptional()
-  @IsString()
-  parentCarnet?: string;
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Debe haber al menos un tutor' })
+  @ValidateNested({ each: true })
+  @Type(() => ChildTutorDto)
+  tutors?: ChildTutorDto[];
 
   @IsOptional()
   @IsInt()

@@ -20,20 +20,37 @@ async function main() {
 
   const childrenCount = await prisma.child.count();
   if (childrenCount === 0) {
-    await prisma.child.create({
-      data: {
-        name: 'Martina',
-        lastName: 'Gómez',
-        dateOfBirth: new Date('2019-04-12'),
-        sex: 'Femenino',
-        enrollmentDate: new Date('2025-02-01'),
-        parentName: 'Lucía',
-        parentLastName: 'Pérez',
-        parentRelationship: 'Madre',
-        parentPhone: '+51 987 654 321',
-        parentEmail: 'lucia.perez@example.com',
-        parentCarnet: 'DNI 45231876',
-      },
+    await prisma.$transaction(async (tx) => {
+      const child = await tx.child.create({
+        data: {
+          name: 'Martina',
+          lastName: 'Gómez',
+          dateOfBirth: new Date('2019-04-12'),
+          sex: 'Mujer',
+          enrollmentDate: new Date('2025-02-01'),
+        },
+      });
+
+      const tutor = await tx.tutor.upsert({
+        where: { carnet: 'DNI 45231876' },
+        update: {},
+        create: {
+          name: 'Lucía',
+          lastName: 'Pérez',
+          phone: '+51 987 654 321',
+          email: 'lucia.perez@example.com',
+          carnet: 'DNI 45231876',
+        },
+      });
+
+      await tx.childTutor.create({
+        data: {
+          childId: child.id,
+          tutorId: tutor.id,
+          relationship: 'Madre',
+          isPrimary: true,
+        },
+      });
     });
     console.log('Seed completado. Niño de ejemplo creado.');
   }

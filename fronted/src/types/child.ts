@@ -1,4 +1,4 @@
-export const SEX_OPTIONS = ["M", "F", "Masculino", "Femenino"] as const;
+export const SEX_OPTIONS = ["Varón", "Mujer"] as const;
 
 export interface ChildSpecialist {
   id: number;
@@ -7,6 +7,27 @@ export interface ChildSpecialist {
     name: string;
     lastName: string;
   };
+}
+
+export interface ChildTutor {
+  id: number;
+  name: string;
+  lastName: string;
+  relationship: string;
+  phone: string;
+  email?: string | null;
+  carnet: string;
+  isPrimary: boolean;
+}
+
+export interface ChildTutorInput {
+  name: string;
+  lastName: string;
+  relationship: string;
+  phone: string;
+  email?: string;
+  carnet: string;
+  isPrimary: boolean;
 }
 
 export interface Child {
@@ -18,12 +39,7 @@ export interface Child {
   photo?: string | null;
   enrollmentDate: string;
   isActive: boolean;
-  parentName: string;
-  parentLastName: string;
-  parentRelationship: string;
-  parentPhone: string;
-  parentEmail?: string | null;
-  parentCarnet: string;
+  tutors: ChildTutor[];
   specialistId?: number | null;
   specialist?: ChildSpecialist | null;
   createdAt: string;
@@ -37,12 +53,7 @@ export interface ChildInput {
   photo?: string;
   enrollmentDate: string;
   isActive?: boolean;
-  parentName: string;
-  parentLastName: string;
-  parentRelationship: string;
-  parentPhone: string;
-  parentEmail?: string;
-  parentCarnet: string;
+  tutors: ChildTutorInput[];
   specialistId?: number;
 }
 

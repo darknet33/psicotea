@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChildSelect } from "@/components/forms/child-select";
+import { DateSelects } from "@/components/forms/date-selects";
 import { createEnrollment } from "@/lib/api/enrollments";
 import { getErrorMessage } from "@/lib/axios";
 import type { Enrollment } from "@/types/enrollment";
@@ -100,7 +101,17 @@ export function EnrollmentForm({
 
           <div className="space-y-2">
             <Label htmlFor="startDate">Fecha de inicio</Label>
-            <Input id="startDate" type="date" {...register("startDate")} aria-invalid={Boolean(errors.startDate)} />
+            <Controller
+              control={control}
+              name="startDate"
+              render={({ field }) => (
+                <DateSelects
+                  value={field.value}
+                  onChange={field.onChange}
+                  invalid={Boolean(errors.startDate)}
+                />
+              )}
+            />
             {errors.startDate && <p className="text-sm text-error">{errors.startDate.message}</p>}
           </div>
 
