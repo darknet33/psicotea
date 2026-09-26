@@ -28,6 +28,10 @@ export class ChildTutorDto {
   @IsEmail({}, { message: 'El email del tutor debe ser un email válido' })
   email?: string;
 
+  @IsOptional()
+  @IsString()
+  address?: string;
+
   @IsString()
   @IsNotEmpty({ message: 'El carnet del tutor es obligatorio' })
   carnet: string;

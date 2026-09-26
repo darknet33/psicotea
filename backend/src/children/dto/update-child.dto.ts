@@ -4,12 +4,14 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
-  IsEmail,
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { ChildTutorDto } from './child-tutor.dto';
@@ -35,11 +37,20 @@ export class UpdateChildDto {
 
   @IsOptional()
   @IsString()
-  photo?: string;
+  @IsNotEmpty({ message: 'La foto no puede estar vacía' })
+  @IsUrl({}, { message: 'La foto debe ser una URL válida' })
+  photoUrl?: string;
 
   @IsOptional()
-  @IsDateString()
-  enrollmentDate?: string;
+  @IsString()
+  @IsNotEmpty({ message: 'El diagnóstico no puede estar vacío' })
+  diagnostico?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'El carnet del niño no puede estar vacío' })
+  @MaxLength(191, { message: 'El carnet no puede superar los 191 caracteres' })
+  carnet?: string;
 
   @IsOptional()
   @IsBoolean()

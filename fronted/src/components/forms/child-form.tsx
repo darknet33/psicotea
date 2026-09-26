@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateSelects } from "@/components/forms/date-selects";
+import { PhotoUpload } from "@/components/forms/photo-upload";
 import type { ChildInput } from "@/types/child";
 import { SEX_OPTIONS } from "@/types/child";
 
@@ -18,6 +19,7 @@ const tutorSchema = z.object({
   relationship: z.string().min(1, "El parentesco es obligatorio"),
   phone: z.string().min(1, "El celular/WhatsApp es obligatorio"),
   email: z.union([z.string().trim().email("Email inválido"), z.literal("")]),
+  address: z.string().trim(),
   carnet: z.string().min(1, "El carnet es obligatorio"),
   isPrimary: z.boolean(),
 });
@@ -30,7 +32,14 @@ const childSchema = z
     sex: z.enum(["Varón", "Mujer"], {
       message: "Selecciona un sexo válido",
     }),
-    enrollmentDate: z.string().min(1, "La fecha de inscripción es obligatoria"),
+    photoUrl: z.string().trim().min(1, "La foto es obligatoria").url("La foto debe ser una URL válida"),
+    diagnostico: z.string().trim().min(1, "El diagnóstico es obligatorio"),
+    // Carnet del niño: obligatorio y único. Distinto del `carnet` de cada tutor.
+    carnet: z
+      .string()
+      .trim()
+      .min(1, "El carnet del niño es obligatorio")
+      .max(191, "El carnet no puede superar los 191 caracteres"),
     isActive: z.boolean(),
     tutors: z
       .array(tutorSchema)
@@ -41,6 +50,18 @@ const childSchema = z
     (values) => values.tutors.filter((t) => t.isPrimary).length === 1,
     {
       message: "Marca exactamente un tutor como principal",
+    },
+  )
+  .refine(
+    (values) => {
+      const carnets = values.tutors
+        .map((t) => t.carnet.trim())
+        .filter((carnet) => carnet.length > 0);
+      return new Set(carnets).size === carnets.length;
+    },
+    {
+      message: "Hay carnets repetidos: un niño no puede tener dos veces al mismo tutor",
+      path: ["tutors"],
     },
   );
 
@@ -57,6 +78,7 @@ function emptyTutor(): TutorFormValues {
     relationship: "",
     phone: "",
     email: "",
+    address: "",
     carnet: "",
     isPrimary: false,
   };
@@ -70,6 +92,7 @@ function toValues(input?: Partial<ChildInput>): ChildFormValues {
       relationship: t.relationship ?? "",
       phone: t.phone ?? "",
       email: t.email ?? "",
+      address: t.address ?? "",
       carnet: t.carnet ?? "",
       isPrimary: t.isPrimary ?? false,
     }),
@@ -84,7 +107,9 @@ function toValues(input?: Partial<ChildInput>): ChildFormValues {
     lastName: input?.lastName ?? "",
     dateOfBirth: input?.dateOfBirth ?? "",
     sex: (input?.sex as ChildFormValues["sex"]) ?? "Varón",
-    enrollmentDate: input?.enrollmentDate ?? "",
+    photoUrl: input?.photoUrl ?? "",
+    diagnostico: input?.diagnostico ?? "",
+    carnet: input?.carnet ?? "",
     isActive: input?.isActive ?? true,
     tutors,
     specialistId: input?.specialistId != null ? String(input.specialistId) : "",
@@ -95,13 +120,24 @@ interface ChildFormProps {
   initialValues?: Partial<ChildInput>;
   submitLabel?: string;
   isSubmitting?: boolean;
+  /**
+   * Error devuelto por el backend en el envío anterior, para mostrarlo junto al
+   * campo que lo causó y no solo como toast. `carnet` cubre el 400 de carnet
+   * duplicado, que el esquema local no puede detectar.
+   */
+  serverError?: ChildFormServerError | null;
   onSubmit: (input: ChildInput) => Promise<void> | void;
 }
+
+export type ChildFormServerError =
+  | { field: "carnet"; message: string }
+  | { field: "root"; message: string };
 
 export function ChildForm({
   initialValues,
   submitLabel = "Guardar",
   isSubmitting = false,
+  serverError = null,
   onSubmit,
 }: ChildFormProps) {
   const {
@@ -120,6 +156,12 @@ export function ChildForm({
     name: "tutors",
   });
 
+  // El error del backend tiene prioridad sobre el del esquema local: si el
+  // carnet ya pertenece a otro niño, ese es el mensaje que el usuario necesita
+  // ver, aunque el formulario valide correctamente.
+  const carnetServerError =
+    serverError?.field === "carnet" ? serverError.message : null;
+
   function handleSetPrimary(index: number) {
     fields.forEach((_, i) => {
       setValue(`tutors.${i}.isPrimary`, i === index);
@@ -132,7 +174,9 @@ export function ChildForm({
       lastName: values.lastName,
       dateOfBirth: values.dateOfBirth,
       sex: values.sex,
-      enrollmentDate: values.enrollmentDate,
+      photoUrl: values.photoUrl,
+      diagnostico: values.diagnostico,
+      carnet: values.carnet.trim(),
       isActive: values.isActive,
       tutors: values.tutors.map((t) => ({
         name: t.name,
@@ -140,6 +184,7 @@ export function ChildForm({
         relationship: t.relationship,
         phone: t.phone,
         email: t.email.trim() || undefined,
+        address: t.address.trim() || undefined,
         carnet: t.carnet,
         isPrimary: t.isPrimary,
       })),
@@ -195,21 +240,59 @@ export function ChildForm({
             </select>
             {errors.sex && <p className="text-sm text-error">{errors.sex.message}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="enrollmentDate">Fecha de inscripción</Label>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Foto del niño</Label>
             <Controller
               control={control}
-              name="enrollmentDate"
+              name="photoUrl"
               render={({ field }) => (
-                <DateSelects
+                <PhotoUpload
                   value={field.value}
                   onChange={field.onChange}
-                  invalid={Boolean(errors.enrollmentDate)}
+                  invalid={Boolean(errors.photoUrl)}
                 />
               )}
             />
-            {errors.enrollmentDate && (
-              <p className="text-sm text-error">{errors.enrollmentDate.message}</p>
+            {errors.photoUrl && (
+              <p className="text-sm text-error">{errors.photoUrl.message}</p>
+            )}
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="diagnostico">Diagnóstico</Label>
+            <textarea
+              id="diagnostico"
+              rows={3}
+              placeholder="Ej: Trastorno por déficit de atención e hiperactividad (TDAH)"
+              className={inputClass}
+              aria-invalid={Boolean(errors.diagnostico)}
+              {...register("diagnostico")}
+            />
+            {errors.diagnostico && (
+              <p className="text-sm text-error">{errors.diagnostico.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="carnet">Carnet / documento del niño</Label>
+            <Input
+              id="carnet"
+              maxLength={191}
+              placeholder="Ej: DNI 10293847"
+              {...register("carnet")}
+              aria-invalid={Boolean(errors.carnet || carnetServerError)}
+              aria-describedby={
+                errors.carnet || carnetServerError ? "carnet-error" : undefined
+              }
+            />
+            {carnetServerError ? (
+              <p id="carnet-error" className="text-sm text-error">
+                {carnetServerError}
+              </p>
+            ) : (
+              errors.carnet && (
+                <p id="carnet-error" className="text-sm text-error">
+                  {errors.carnet.message}
+                </p>
+              )
             )}
           </div>
           <div className="space-y-2">
@@ -244,16 +327,27 @@ export function ChildForm({
               data-primary={fields[index]?.isPrimary ? true : undefined}
             >
               <div className="flex items-center justify-between gap-4">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input
-                    type="radio"
-                    name="tutor-primary"
-                    checked={Boolean(fields[index]?.isPrimary)}
-                    onChange={() => handleSetPrimary(index)}
-                    className="size-4"
-                  />
-                  Tutor principal
-                </label>
+                <Controller
+                  control={control}
+                  name={`tutors.${index}.isPrimary`}
+                  render={({ field: primaryField }) => (
+                    <label className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="radio"
+                        name="tutor-primary"
+                        value={field.id}
+                        checked={Boolean(primaryField.value)}
+                        onChange={() => {
+                          handleSetPrimary(index);
+                          primaryField.onChange(true);
+                        }}
+                        onBlur={primaryField.onBlur}
+                        className="size-4"
+                      />
+                      Tutor principal
+                    </label>
+                  )}
+                />
                 {fields.length > 1 && (
                   <Button
                     type="button"
@@ -349,12 +443,29 @@ export function ChildForm({
                     </p>
                   )}
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`tutors.${index}.address`}>Dirección (opcional)</Label>
+                  <Input
+                    id={`tutors.${index}.address`}
+                    placeholder="Av. Siempre Viva 742"
+                    {...register(`tutors.${index}.address`)}
+                    aria-invalid={Boolean(errors.tutors?.[index]?.address)}
+                  />
+                  {errors.tutors?.[index]?.address && (
+                    <p className="text-sm text-error">
+                      {errors.tutors?.[index]?.address?.message}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           ))}
 
           {errors.root && (
             <p className="text-sm text-error">{errors.root.message}</p>
+          )}
+          {errors.tutors?.root?.message && (
+            <p className="text-sm text-error">{errors.tutors.root.message}</p>
           )}
 
           <Button

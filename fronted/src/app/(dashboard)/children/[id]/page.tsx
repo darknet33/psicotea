@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, IdCard, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { PaymentForm } from "@/components/forms/payment-form";
 import { formatAge, formatDate, formatPrice } from "@/lib/format";
 import { getChild, removeChild, type ChildDetail } from "@/lib/api/children";
 import { getErrorMessage } from "@/lib/axios";
+import { isLegacyCarnet } from "@/lib/carnet";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Enrollment, EnrollmentStatus } from "@/types/enrollment";
 import type { Payment } from "@/types/payment";
@@ -123,6 +124,8 @@ export default function ChildDetailPage() {
     ? `${child.specialist.user.name} ${child.specialist.user.lastName}`
     : null;
 
+  const legacyCarnet = isLegacyCarnet(child.carnet);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -151,6 +154,12 @@ export default function ChildDetailPage() {
         {canWrite && (
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
+              <Link href={`/children/${child.id}/credencial`}>
+                <IdCard className="size-4" />
+                Credencial
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
               <Link href={`/children/${child.id}/edit`}>
                 <Pencil className="size-4" />
                 Editar
@@ -169,13 +178,32 @@ export default function ChildDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">Datos del niño</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p><span className="text-muted-foreground">Nombre:</span> {child.name} {child.lastName}</p>
-            <p><span className="text-muted-foreground">Fecha de nacimiento:</span> {formatDate(child.dateOfBirth)}</p>
-            <p><span className="text-muted-foreground">Edad:</span> {formatAge(child.dateOfBirth)}</p>
-            <p><span className="text-muted-foreground">Sexo:</span> {child.sex}</p>
-            <p><span className="text-muted-foreground">Inscripción:</span> {formatDate(child.enrollmentDate)}</p>
-            <p><span className="text-muted-foreground">Especialista:</span> {specialistName ?? "Sin asignar"}</p>
+          <CardContent className="flex flex-col gap-4 sm:flex-row">
+            {child.photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={child.photoUrl}
+                alt={`Foto de ${child.name} ${child.lastName}`}
+                className="size-32 shrink-0 rounded-lg border object-cover"
+              />
+            )}
+            <div className="space-y-1 text-sm">
+              <p><span className="text-muted-foreground">Nombre:</span> {child.name} {child.lastName}</p>
+              <p>
+                <span className="text-muted-foreground">Carnet:</span>{" "}
+                <span className="font-mono">{child.carnet}</span>{" "}
+                {legacyCarnet && (
+                  <Badge variant="warning" className="ml-1">
+                    Provisional
+                  </Badge>
+                )}
+              </p>
+              <p><span className="text-muted-foreground">Fecha de nacimiento:</span> {formatDate(child.dateOfBirth)}</p>
+              <p><span className="text-muted-foreground">Edad:</span> {formatAge(child.dateOfBirth)}</p>
+              <p><span className="text-muted-foreground">Sexo:</span> {child.sex}</p>
+              <p><span className="text-muted-foreground">Diagnóstico:</span> {child.diagnostico}</p>
+              <p><span className="text-muted-foreground">Especialista:</span> {specialistName ?? "Sin asignar"}</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -205,6 +233,9 @@ export default function ChildDetailPage() {
                     </p>
                     <p>
                       <span className="text-muted-foreground">Email:</span> {tutor.email ?? "—"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Dirección:</span> {tutor.address ?? "—"}
                     </p>
                     <p>
                       <span className="text-muted-foreground">Carnet:</span> {tutor.carnet}

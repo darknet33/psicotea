@@ -10,6 +10,8 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { ChildTutorDto } from './child-tutor.dto';
@@ -31,12 +33,19 @@ export class CreateChildDto {
   })
   sex: string;
 
-  @IsOptional()
   @IsString()
-  photo?: string;
+  @IsNotEmpty({ message: 'La foto es obligatoria' })
+  @IsUrl({}, { message: 'La foto debe ser una URL válida' })
+  photoUrl: string;
 
-  @IsDateString()
-  enrollmentDate: string;
+  @IsString()
+  @IsNotEmpty({ message: 'El diagnóstico es obligatorio' })
+  diagnostico: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'El carnet del niño es obligatorio' })
+  @MaxLength(191, { message: 'El carnet no puede superar los 191 caracteres' })
+  carnet: string;
 
   @IsOptional()
   @IsBoolean()

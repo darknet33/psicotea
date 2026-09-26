@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CredentialTokenService } from '../common/credential/credential-token.service';
 import { CreateChildDto } from './dto/create-child.dto';
 import { UpdateChildDto } from './dto/update-child.dto';
 import { QueryChildrenDto } from './dto/query-children.dto';
@@ -12,24 +13,26 @@ import { ChildTutorDto } from './dto/child-tutor.dto';
 
 @Injectable()
 export class ChildrenService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly credentialToken: CredentialTokenService,
+  ) {}
 
-  private serializeTutors(
-    child: {
-      tutors?: Array<{
-        tutor: {
-          id: number;
-          name: string;
-          lastName: string;
-          phone: string;
-          email: string | null;
-          carnet: string;
-        };
-        relationship: string;
-        isPrimary: boolean;
-      }>;
-    },
-  ) {
+  private serializeTutors(child: {
+    tutors?: Array<{
+      tutor: {
+        id: number;
+        name: string;
+        lastName: string;
+        phone: string;
+        email: string | null;
+        address: string | null;
+        carnet: string;
+      };
+      relationship: string;
+      isPrimary: boolean;
+    }>;
+  }) {
     return (child.tutors ?? []).map((ct) => ({
       id: ct.tutor.id,
       name: ct.tutor.name,
@@ -37,17 +40,61 @@ export class ChildrenService {
       relationship: ct.relationship,
       phone: ct.tutor.phone,
       email: ct.tutor.email,
+      address: ct.tutor.address,
       carnet: ct.tutor.carnet,
       isPrimary: ct.isPrimary,
     }));
   }
 
-  private validatePrimary(tutors: ChildTutorDto[]) {
+  /**
+   * Normaliza el carnet del niño: recorta espacios y rechaza el valor vacío.
+   * Un carnet solo con espacios pasa `@IsNotEmpty()`, así que se valida aquí.
+   */
+  private normalizeCarnet(carnet: string): string {
+    const trimmed = carnet.trim();
+    if (!trimmed) {
+      throw new BadRequestException('El carnet del niño es obligatorio');
+    }
+    return trimmed;
+  }
+
+  /**
+   * Traduce la violación del índice único de `Child.carnet` a un 400 con un
+   * mensaje que el formulario puede mostrar junto al campo.
+   */
+  private assertCarnetAvailable(error: unknown): never {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002' &&
+      String(error.meta?.target ?? '').includes('carnet')
+    ) {
+      throw new BadRequestException(
+        'Ese carnet ya pertenece a otro niño. Cada niño debe tener un carnet distinto.',
+      );
+    }
+    throw error;
+  }
+
+  private validateTutors(tutors: ChildTutorDto[]) {
     const primaryCount = tutors.filter((t) => t.isPrimary).length;
     if (primaryCount !== 1) {
       throw new BadRequestException(
         'Debe haber exactamente un tutor principal (isPrimary)',
       );
+    }
+
+    const seen = new Set<string>();
+    for (const tutor of tutors) {
+      const carnet = tutor.carnet?.trim() ?? '';
+      if (!carnet) {
+        throw new BadRequestException('El carnet del tutor es obligatorio');
+      }
+      if (seen.has(carnet)) {
+        throw new BadRequestException(
+          `El carnet "${carnet}" está repetido: un niño no puede tener dos veces al mismo tutor`,
+        );
+      }
+      seen.add(carnet);
     }
   }
 
@@ -59,20 +106,23 @@ export class ChildrenService {
     await tx.childTutor.deleteMany({ where: { childId } });
 
     for (const t of tutors) {
+      const carnet = t.carnet.trim();
       const tutor = await tx.tutor.upsert({
-        where: { carnet: t.carnet },
+        where: { carnet },
         update: {
           name: t.name,
           lastName: t.lastName,
           phone: t.phone,
           email: t.email,
+          address: t.address,
         },
         create: {
           name: t.name,
           lastName: t.lastName,
           phone: t.phone,
           email: t.email,
-          carnet: t.carnet,
+          address: t.address,
+          carnet,
         },
       });
 
@@ -123,6 +173,7 @@ export class ChildrenService {
                 lastName: true,
                 phone: true,
                 email: true,
+                address: true,
                 carnet: true,
               },
             },
@@ -160,6 +211,7 @@ export class ChildrenService {
                 lastName: true,
                 phone: true,
                 email: true,
+                address: true,
                 carnet: true,
               },
             },
@@ -190,25 +242,33 @@ export class ChildrenService {
   }
 
   async create(dto: CreateChildDto) {
-    this.validatePrimary(dto.tutors);
+    this.validateTutors(dto.tutors);
 
-    const childId = await this.prisma.$transaction(async (tx) => {
-      const child = await tx.child.create({
-        data: {
-          name: dto.name,
-          lastName: dto.lastName,
-          dateOfBirth: new Date(dto.dateOfBirth),
-          sex: dto.sex,
-          photo: dto.photo,
-          enrollmentDate: new Date(dto.enrollmentDate),
-          isActive: dto.isActive ?? true,
-          specialistId: dto.specialistId,
-        },
-      });
+    const carnet = this.normalizeCarnet(dto.carnet);
+    // El token lo genera siempre el backend: el cliente nunca lo controla.
+    const credentialCode = this.credentialToken.generate();
 
-      await this.upsertTutors(tx, child.id, dto.tutors);
-      return child.id;
-    });
+    const childId = await this.prisma
+      .$transaction(async (tx) => {
+        const child = await tx.child.create({
+          data: {
+            name: dto.name,
+            lastName: dto.lastName,
+            dateOfBirth: new Date(dto.dateOfBirth),
+            sex: dto.sex,
+            photoUrl: dto.photoUrl,
+            diagnostico: dto.diagnostico,
+            carnet,
+            credentialCode,
+            isActive: dto.isActive ?? true,
+            specialistId: dto.specialistId,
+          },
+        });
+
+        await this.upsertTutors(tx, child.id, dto.tutors);
+        return child.id;
+      })
+      .catch((error: unknown) => this.assertCarnetAvailable(error));
 
     return this.findOne(childId);
   }
@@ -217,34 +277,42 @@ export class ChildrenService {
     await this.findOne(id);
 
     if (dto.tutors) {
-      this.validatePrimary(dto.tutors);
+      this.validateTutors(dto.tutors);
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.child.update({
-        where: { id },
-        data: {
-          ...(dto.name !== undefined && { name: dto.name }),
-          ...(dto.lastName !== undefined && { lastName: dto.lastName }),
-          ...(dto.dateOfBirth !== undefined && {
-            dateOfBirth: new Date(dto.dateOfBirth),
-          }),
-          ...(dto.sex !== undefined && { sex: dto.sex }),
-          ...(dto.photo !== undefined && { photo: dto.photo }),
-          ...(dto.enrollmentDate !== undefined && {
-            enrollmentDate: new Date(dto.enrollmentDate),
-          }),
-          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-          ...(dto.specialistId !== undefined && {
-            specialistId: dto.specialistId,
-          }),
-        },
-      });
+    const carnet =
+      dto.carnet !== undefined ? this.normalizeCarnet(dto.carnet) : undefined;
 
-      if (dto.tutors) {
-        await this.upsertTutors(tx, id, dto.tutors);
-      }
-    });
+    await this.prisma
+      .$transaction(async (tx) => {
+        await tx.child.update({
+          where: { id },
+          data: {
+            ...(dto.name !== undefined && { name: dto.name }),
+            ...(dto.lastName !== undefined && { lastName: dto.lastName }),
+            ...(dto.dateOfBirth !== undefined && {
+              dateOfBirth: new Date(dto.dateOfBirth),
+            }),
+            ...(dto.sex !== undefined && { sex: dto.sex }),
+            ...(dto.photoUrl !== undefined && { photoUrl: dto.photoUrl }),
+            ...(dto.diagnostico !== undefined && {
+              diagnostico: dto.diagnostico,
+            }),
+            ...(carnet !== undefined && { carnet }),
+            ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+            ...(dto.specialistId !== undefined && {
+              specialistId: dto.specialistId,
+            }),
+          },
+        });
+
+        if (dto.tutors) {
+          await this.upsertTutors(tx, id, dto.tutors);
+        }
+      })
+      // Un PATCH que reenvía el carnet propio no choca con el índice: solo lo
+      // dispara un carnet que pertenece a otro niño.
+      .catch((error: unknown) => this.assertCarnetAvailable(error));
 
     return this.findOne(id);
   }

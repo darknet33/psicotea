@@ -7,8 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChildForm } from "@/components/forms/child-form";
-import { getChild, updateChild } from "@/lib/api/children";
+import { ChildForm, type ChildFormServerError } from "@/components/forms/child-form";
+import { getChild, getChildSubmitError, updateChild } from "@/lib/api/children";
 import { getErrorMessage } from "@/lib/axios";
 import type { ChildInput } from "@/types/child";
 
@@ -20,6 +20,7 @@ export default function EditChildPage() {
   const [initialValues, setInitialValues] = useState<ChildInput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<ChildFormServerError | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -30,15 +31,17 @@ export default function EditChildPage() {
           lastName: child.lastName,
           dateOfBirth: child.dateOfBirth,
           sex: child.sex,
-          enrollmentDate: child.enrollmentDate,
+          photoUrl: child.photoUrl,
+          diagnostico: child.diagnostico,
+          carnet: child.carnet,
           isActive: child.isActive,
           tutors: child.tutors.map((tutor) => ({
-            id: tutor.id,
             name: tutor.name,
             lastName: tutor.lastName,
             relationship: tutor.relationship,
             phone: tutor.phone,
             email: tutor.email ?? undefined,
+            address: tutor.address ?? undefined,
             carnet: tutor.carnet,
             isPrimary: tutor.isPrimary,
           })),
@@ -53,12 +56,18 @@ export default function EditChildPage() {
   async function handleSubmit(input: ChildInput) {
     try {
       setIsSubmitting(true);
+      setServerError(null);
       const child = await updateChild(childId, input);
       toast.success("Cambios guardados correctamente");
       router.push(`/children/${child.id}`);
       router.refresh();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      const fieldError = getChildSubmitError(err);
+      if (fieldError) {
+        setServerError(fieldError);
+      } else {
+        toast.error(getErrorMessage(err));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -96,6 +105,7 @@ export default function EditChildPage() {
           initialValues={initialValues}
           submitLabel="Guardar cambios"
           isSubmitting={isSubmitting}
+          serverError={serverError}
           onSubmit={handleSubmit}
         />
       )}

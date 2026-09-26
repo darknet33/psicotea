@@ -1,7 +1,12 @@
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient, Role } from '@prisma/client';
+import { CredentialTokenService } from '../src/common/credential/credential-token.service';
 
 const prisma = new PrismaClient();
+const credentialToken = new CredentialTokenService(
+  new ConfigService(process.env),
+);
 
 async function main() {
   const password = await bcrypt.hash('Admin1234', 10);
@@ -27,7 +32,12 @@ async function main() {
           lastName: 'Gómez',
           dateOfBirth: new Date('2019-04-12'),
           sex: 'Mujer',
-          enrollmentDate: new Date('2025-02-01'),
+          photoUrl:
+            'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=640&q=80',
+          diagnostico:
+            'Trastorno por déficit de atención e hiperactividad (TDAH)',
+          carnet: 'DNI 10293847',
+          credentialCode: credentialToken.generate(),
         },
       });
 
@@ -39,6 +49,7 @@ async function main() {
           lastName: 'Pérez',
           phone: '+51 987 654 321',
           email: 'lucia.perez@example.com',
+          address: 'Av. Los Álamos 1234, Lince, Lima',
           carnet: 'DNI 45231876',
         },
       });
@@ -55,7 +66,9 @@ async function main() {
     console.log('Seed completado. Niño de ejemplo creado.');
   }
 
-  console.log(`Seed completado. Usuario admin: ${admin.email} (password: Admin1234)`);
+  console.log(
+    `Seed completado. Usuario admin: ${admin.email} (password: Admin1234)`,
+  );
 }
 
 main()

@@ -9,6 +9,7 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { listChildren } from "@/lib/api/children";
 import { formatAge } from "@/lib/format";
 import { getErrorMessage } from "@/lib/axios";
+import { isLegacyCarnet } from "@/lib/carnet";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Child } from "@/types/child";
 
@@ -50,9 +51,33 @@ export default function ChildrenPage() {
       key: "name",
       header: "Nombre",
       cell: (child) => (
-        <Link href={`/children/${child.id}`} className="font-medium hover:underline">
-          {child.name} {child.lastName}
-        </Link>
+        <div className="flex items-center gap-3">
+          {child.photoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={child.photoUrl}
+              alt=""
+              className="size-9 shrink-0 rounded-full border object-cover"
+            />
+          )}
+          <Link href={`/children/${child.id}`} className="font-medium hover:underline">
+            {child.name} {child.lastName}
+          </Link>
+        </div>
+      ),
+    },
+    {
+      key: "carnet",
+      header: "Carnet",
+      cell: (child) => (
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-xs">{child.carnet}</span>
+          {isLegacyCarnet(child.carnet) && (
+            <Badge variant="warning" className="text-[10px]">
+              Provisional
+            </Badge>
+          )}
+        </div>
       ),
     },
     {

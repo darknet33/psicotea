@@ -183,3 +183,53 @@ body {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+/*
+ * Impresion de la credencial del nino.
+ *
+ * Al imprimir se oculta todo el cromo de la aplicacion (sidebar, header,
+ * botones) y solo queda la tarjeta, que ocupa una sola hoja. `@page` fija el
+ * tamano A4 con margenes estrechos para que la credencial no se corte entre
+ * dos paginas, y `break-inside: avoid` evita que el contenido se parta.
+ *
+ * both Chrome y Firefox respetan estas reglas.
+ */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  /* Todo lo que no sea la credencial se oculta al imprimir. */
+  body * {
+    visibility: hidden;
+  }
+
+  .credential-print-area,
+  .credential-print-area * {
+    visibility: visible;
+  }
+
+  .credential-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Los QR son SVG: se fuerzan trazos y relleno para que no salgan en blanco
+     cuando la impresora no soporta su impresion nativa. */
+  .credential-print-area svg,
+  .credential-print-area img {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

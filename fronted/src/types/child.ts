@@ -16,6 +16,7 @@ export interface ChildTutor {
   relationship: string;
   phone: string;
   email?: string | null;
+  address?: string | null;
   carnet: string;
   isPrimary: boolean;
 }
@@ -26,6 +27,7 @@ export interface ChildTutorInput {
   relationship: string;
   phone: string;
   email?: string;
+  address?: string;
   carnet: string;
   isPrimary: boolean;
 }
@@ -36,8 +38,15 @@ export interface Child {
   lastName: string;
   dateOfBirth: string;
   sex: string;
-  photo?: string | null;
-  enrollmentDate: string;
+  photoUrl: string;
+  diagnostico: string;
+  /** Documento de identidad del niño. Obligatorio y único en el sistema. */
+  carnet: string;
+  /**
+   * Token firmado de la credencial. El backend lo genera siempre; el cliente
+   * solo lo lee, nunca lo escribe.
+   */
+  credentialCode: string;
   isActive: boolean;
   tutors: ChildTutor[];
   specialistId?: number | null;
@@ -50,8 +59,9 @@ export interface ChildInput {
   lastName: string;
   dateOfBirth: string;
   sex: string;
-  photo?: string;
-  enrollmentDate: string;
+  photoUrl: string;
+  diagnostico: string;
+  carnet: string;
   isActive?: boolean;
   tutors: ChildTutorInput[];
   specialistId?: number;

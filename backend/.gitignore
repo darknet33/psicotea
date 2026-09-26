@@ -1,0 +1,6 @@
+# Uploaded files (photos of children) - not versioned
+uploads/
+
+# Local logs
+*.log
+dev.log

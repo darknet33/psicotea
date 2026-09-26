@@ -69,9 +69,11 @@ model Child {
   lastName         String
   dateOfBirth      DateTime
   sex              String
-  photo            String?
-  enrollmentDate   DateTime
-  isActive         Boolean       @default(true)
+  photoUrl         String
+  diagnostico      String
+  carnet           String           @unique
+  credentialCode   String           @unique
+  isActive         Boolean          @default(true)
   enrollments      Enrollment[]
   attendances      Attendance[]
   activities       Activity[]
@@ -92,6 +94,7 @@ model Tutor {
   lastName  String
   phone     String
   email     String?
+  address   String?
   carnet    String      @unique
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt

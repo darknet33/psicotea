@@ -1,7 +1,9 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { networkInterfaces } from 'os';
 import { AppModule } from './app.module';
+import { getUploadsDir } from './uploads/uploads.constants';
 
 function getNetworkAddress(): string {
   const nets = networkInterfaces();
@@ -16,7 +18,10 @@ function getNetworkAddress(): string {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  const uploadsDir = getUploadsDir();
+  app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
 
   const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
     .split(',')
@@ -24,7 +29,11 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*')
+      ) {
         callback(null, true);
       } else {
         callback(null, origin);

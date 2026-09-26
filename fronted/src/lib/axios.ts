@@ -17,6 +17,18 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+/**
+ * Instancia para endpoints que NO requieren sesión (la página pública del
+ * niño). No lleva el interceptor de request porque no debe adjuntar el token
+ * del padre a una URL pública, ni el interceptor de response porque un 404 de
+ * "credencial no válida" no debe redirigir a `/login`. Al no tocar
+ * `localStorage`, también funciona desde Server Components.
+ */
+export const publicApi = axios.create({
+  baseURL: API_URL,
+  headers: { "Content-Type": "application/json" },
+});
+
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
@@ -111,6 +123,41 @@ export function getErrorMessage(error: unknown): string {
   }
   if (error instanceof Error) return error.message;
   return "Ha ocurrido un error inesperado";
+}
+
+/**
+ * Rota la respuesta de validación de NestJS (`{ message: string[] }`) a un
+ * objeto `{ campo, mensaje }` para poder pintar el error junto al input que lo
+ * provocó. Devuelve `null` si la respuesta no es de validación.
+ *
+ * El DTO del niño marca `carnet` sin `path`, porque el mensaje de carnet
+ * duplicado lo produce la regla de negocio (P2002) y no `class-validator`, así
+ * que se trata aparte en `getChildSubmitError`.
+ */
+export function getValidationErrors(
+  error: unknown,
+): Array<{ field: string; message: string }> {
+  if (!isAxiosError(error)) return [];
+  if (error.response?.status !== 400) return [];
+
+  const { message } = error.response.data ?? {};
+
+  if (typeof message === "string") {
+    return [{ field: "root", message }];
+  }
+
+  if (Array.isArray(message)) {
+    return message.map((text) => {
+      const separator = text.lastIndexOf(" ");
+      if (separator === -1) return { field: "root", message: text };
+      return {
+        field: text.slice(0, separator),
+        message: text.slice(separator + 1),
+      };
+    });
+  }
+
+  return [];
 }
 
 export type { AxiosRequestConfig };

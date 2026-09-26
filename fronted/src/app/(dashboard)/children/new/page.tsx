@@ -6,24 +6,31 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ChildForm } from "@/components/forms/child-form";
-import { createChild } from "@/lib/api/children";
+import { ChildForm, type ChildFormServerError } from "@/components/forms/child-form";
+import { createChild, getChildSubmitError } from "@/lib/api/children";
 import { getErrorMessage } from "@/lib/axios";
 import type { ChildInput } from "@/types/child";
 
 export default function NewChildPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<ChildFormServerError | null>(null);
 
   async function handleSubmit(input: ChildInput) {
     try {
       setIsSubmitting(true);
+      setServerError(null);
       const child = await createChild(input);
       toast.success("Niño registrado correctamente");
       router.push(`/children/${child.id}`);
       router.refresh();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      const fieldError = getChildSubmitError(error);
+      if (fieldError) {
+        setServerError(fieldError);
+      } else {
+        toast.error(getErrorMessage(error));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -44,7 +51,12 @@ export default function NewChildPage() {
         </div>
       </div>
 
-      <ChildForm submitLabel="Registrar niño" isSubmitting={isSubmitting} onSubmit={handleSubmit} />
+      <ChildForm
+        submitLabel="Registrar niño"
+        isSubmitting={isSubmitting}
+        serverError={serverError}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }
