@@ -3,6 +3,23 @@
 Guía para dejar el proyecto funcionando en una máquina nueva. Todo lo que se detalla
 aquí no viene en el repositorio (queda excluido por `.gitignore` o se genera solo).
 
+## Instalación automática
+
+En **Linux (Ubuntu/Linux Mint)** hay un instalador que replica la configuración que se
+usa en Windows: herramientas del sistema (git, curl, Node 20+, MySQL), dependencias de
+backend/frontend, `.env`, migraciones + seed y los skills de agentes (MCP context7,
+find-skills, nestjs y react). Los MCP remotos y los skills OpenSpec ya viajan en el repo.
+
+```bash
+bash instalar-linux.sh              # instalación completa
+bash instalar-linux.sh --skip-system   # ya tienes las herramientas del SO
+bash instalar-linux.sh --skip-deps     # no toca npm ni .env
+bash instalar-linux.sh --skip-db       # no corre migraciones/seed
+```
+
+En **Windows** el arranque es automático con `iniciar-sistema.bat`, que detecta la IP LAN,
+actualiza los `.env` y levanta backend + frontend (ver sección 4).
+
 ## Requisitos previos
 
 - Node.js 20+
@@ -71,6 +88,24 @@ npx prisma db seed
 ```
 
 ## 4. Levantar el proyecto
+
+En **Windows** (con doble clic o desde consola):
+
+```bat
+iniciar-sistema.bat
+```
+
+Detecta la IP LAN, actualiza `fronted/.env.local` y `backend/.env` (CORS), abre el backend
+(puerto 3001) y el frontend (puerto 3000) en ventanas separadas y abre el navegador en la IP
+LAN, de modo que desde otros dispositivos de la red también funciona.
+
+En **Linux**:
+
+```bash
+bash iniciar-sistema.sh
+```
+
+Manualmente, equivaldría a:
 
 ```bash
 # Backend (puerto 3001)
