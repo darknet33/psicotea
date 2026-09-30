@@ -203,30 +203,33 @@ body {
     background: #ffffff;
   }
 
-  /* Todo lo que no sea la credencial se oculta al imprimir. */
+/* Todo lo que no sea la credencial se oculta al imprimir. */
   body * {
     visibility: hidden;
   }
 
+  /* Fuerza a que los fondos, colores de texto y bordes de la credencial no se
+     pierdan al imprimir o al guardar como PDF. */
   .credential-print-area,
   .credential-print-area * {
     visibility: visible;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .credential-print-area {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    border: 0 !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
     box-shadow: none !important;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  /* Los QR son SVG: se fuerzan trazos y relleno para que no salgan en blanco
-     cuando la impresora no soporta su impresion nativa. */
+  /* Los QR son SVG y el logo es un <img>: también deben conservar sus colores
+     cuando la impresora no soporta su impresión nativa. */
   .credential-print-area svg,
   .credential-print-area img {
     print-color-adjust: exact;

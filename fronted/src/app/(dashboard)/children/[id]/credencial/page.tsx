@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Phone, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CredentialQr } from "@/components/credential/credential-qr";
 import { getChild, type ChildDetail } from "@/lib/api/children";
-import { getErrorMessage, resolveMediaUrl } from "@/lib/axios";
+import { getErrorMessage } from "@/lib/axios";
 import { isLegacyCarnet } from "@/lib/carnet";
 
 /**
@@ -131,55 +132,68 @@ export default function ChildCredentialPage() {
         </div>
       )}
 
-      <Card className="credential-print-area">
-        <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
-          {child.photoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={resolveMediaUrl(child.photoUrl)}
-              alt={`Foto de ${child.name} ${child.lastName}`}
-              className="size-28 shrink-0 rounded-lg border object-cover"
+      <Card className="credential-print-area mx-auto w-full max-w-[340px] overflow-hidden">
+        <CardContent className="flex min-h-[520px] flex-col p-0">
+          {/* Cabecera institucional con el logo de la empresa. */}
+          <div className="flex items-center gap-3 bg-primary px-5 py-4 text-white">
+            <Image
+              src="/logo.jpg"
+              alt="Logo de PsicoTea"
+              width={40}
+              height={40}
+              priority
+              className="size-10 shrink-0 rounded-full bg-white object-contain p-0.5"
             />
-          )}
-
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              PsicoTea
-            </p>
-            <h3 className="truncate text-xl font-bold tracking-tight">
-              {child.name} {child.lastName}
-            </h3>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Carnet:</span>{" "}
-              <span className="font-mono">{child.carnet}</span>
-            </p>
-            {primaryTutor ? (
-              <div className="pt-1 text-sm">
-                <p className="text-muted-foreground">Tutor principal</p>
-                <p>
-                  {primaryTutor.name} {primaryTutor.lastName}
-                  <span className="text-muted-foreground">
-                    {" "}
-                    · {primaryTutor.relationship}
-                  </span>
-                </p>
-                <p className="text-muted-foreground">{primaryTutor.phone}</p>
-              </div>
-            ) : (
-              <p className="pt-1 text-sm text-muted-foreground">
-                Sin tutor principal asignado.
-              </p>
-            )}
-          </div>
-
-          {publicUrl && (
-            <div className="flex shrink-0 flex-col items-center gap-1">
-              <CredentialQr value={publicUrl} />
-              <p className="max-w-[10rem] text-center text-[10px] leading-tight text-muted-foreground">
-                Escanea para ver los datos y el historial de informes
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-tight tracking-tight">PsicoTea</p>
+              <p className="text-[9px] font-medium uppercase tracking-widest text-brand-tea">
+                Centro de Psicología y Terapia del Autismo
               </p>
             </div>
-          )}
+          </div>
+
+          {/* Identidad del niño: nombre y carnet. */}
+          <div className="flex flex-col items-center px-6 pt-6">
+            <h3 className="truncate text-center text-xl font-extrabold tracking-tight text-primary">
+              {child.name} {child.lastName}
+            </h3>
+            <p className="mt-2 rounded-full border border-brand-tea bg-brand-tea/15 px-3 py-1 font-mono text-xs font-bold text-primary">
+              {child.carnet}
+            </p>
+          </div>
+
+          {/* Acceso digital: QR y su leyenda. */}
+          {publicUrl ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-6">
+              <div className="rounded-xl border-2 border-brand-tea bg-brand-tea/10 p-3">
+                <CredentialQr value={publicUrl} size={176} />
+              </div>
+              <p className="mx-auto max-w-[220px] text-center text-[10.5px] font-medium leading-tight text-muted-foreground">
+                Escanea para ver los datos e historial de informes
+              </p>
+            </div>
+          ) : null}
+
+          {/* Pie con el tutor principal y su teléfono. */}
+          <div className="mt-auto border-t border-muted px-5 py-4">
+            <p className="text-[9.5px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Tutor principal
+            </p>
+            {primaryTutor ? (
+              <>
+                <p className="mt-0.5 text-xs font-semibold text-foreground">
+                  {primaryTutor.name} {primaryTutor.lastName}
+                  <span className="text-muted-foreground"> · {primaryTutor.relationship}</span>
+                </p>
+                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-primary">
+                  <Phone className="size-3" />
+                  {primaryTutor.phone}
+                </p>
+              </>
+            ) : (
+              <p className="mt-0.5 text-xs text-muted-foreground">Sin tutor principal asignado.</p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
