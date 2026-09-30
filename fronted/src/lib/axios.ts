@@ -12,6 +12,20 @@ import {
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
+/**
+ * Resuelve contra el backend las rutas de medios que guarda la API de forma
+ * relativa (`/uploads/<archivo>`). Las URLs absolutas se devuelven tal cual.
+ *
+ * La API devuelve rutas relativas a propósito: si guardara el host con el que
+ * se hizo la petición, la foto dejaría de cargar al cambiar de red o al abrir
+ * la app desde otro dispositivo.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_URL.replace(/\/+$/, "")}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: { "Content-Type": "application/json" },

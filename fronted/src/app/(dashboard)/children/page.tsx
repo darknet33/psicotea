@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { listChildren } from "@/lib/api/children";
 import { formatAge } from "@/lib/format";
-import { getErrorMessage } from "@/lib/axios";
+import { getErrorMessage, resolveMediaUrl } from "@/lib/axios";
 import { isLegacyCarnet } from "@/lib/carnet";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Child } from "@/types/child";
@@ -55,7 +55,7 @@ export default function ChildrenPage() {
           {child.photoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={child.photoUrl}
+              src={resolveMediaUrl(child.photoUrl)}
               alt=""
               className="size-9 shrink-0 rounded-full border object-cover"
             />

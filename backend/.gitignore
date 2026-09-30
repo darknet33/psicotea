@@ -1,5 +1,7 @@
 # Uploaded files (photos of children) - not versioned
-uploads/
+# Anclado a la raíz: sin el `/` inicial, `uploads/` también ignora el código
+# fuente de `src/uploads/`.
+/uploads/
 
 # Local logs
 *.log

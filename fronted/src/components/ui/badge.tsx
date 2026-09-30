@@ -22,11 +22,16 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
+/**
+ * Se renderiza como `<span>` y no como `<div>` porque es contenido de flujo
+ * inline: se usa dentro de párrafos, y un `<div>` dentro de un `<p>` es HTML
+ * inválido y React lo reporta como error de hidratación.
+ */
 function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
 export { Badge, badgeVariants };

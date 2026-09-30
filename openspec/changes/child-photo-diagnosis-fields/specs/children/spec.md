@@ -6,7 +6,7 @@ El sistema SHALL permitir registrar un niño con sus datos personales, una foto,
 
 Datos del niño:
 
-- `name`, `lastName`, `dateOfBirth`, `sex`, `photoUrl` (obligatorio — URL devuelta por el servicio de subida), `diagnostico` (obligatorio), `isActive`
+- `name`, `lastName`, `dateOfBirth`, `sex`, `photoUrl` (obligatorio — ruta `/uploads/...` devuelta por el servicio de subida, o URL absoluta), `diagnostico` (obligatorio), `isActive`
 
 La fecha de inscripción ya no forma parte del niño: `enrollmentDate` SHALL ser eliminado y la inscripción se registra únicamente vía el módulo de `enrollments` (`startDate`).
 
@@ -19,7 +19,7 @@ Datos de cada tutor:
 - **THEN** el sistema crea el registro y devuelve 201 con el niño creado
 
 #### Scenario: Foto obligatoria
-- **WHEN** se intenta registrar o actualizar un niño sin `photoUrl` o con una URL inválida
+- **WHEN** se intenta registrar o actualizar un niño sin `photoUrl` o con un valor que no es una ruta `/uploads/...` ni una URL absoluta
 - **THEN** el sistema devuelve 400 con un error de validación
 
 #### Scenario: Diagnóstico obligatorio

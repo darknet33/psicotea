@@ -10,10 +10,14 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUrl,
+  Matches,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+import {
+  PHOTO_URL_MESSAGE,
+  PHOTO_URL_PATTERN,
+} from '../../uploads/uploads.constants';
 import { ChildTutorDto } from './child-tutor.dto';
 
 export class UpdateChildDto {
@@ -38,7 +42,7 @@ export class UpdateChildDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'La foto no puede estar vacía' })
-  @IsUrl({}, { message: 'La foto debe ser una URL válida' })
+  @Matches(PHOTO_URL_PATTERN, { message: PHOTO_URL_MESSAGE })
   photoUrl?: string;
 
   @IsOptional()

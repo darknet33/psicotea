@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CredentialQr } from "@/components/credential/credential-qr";
 import { getChild, type ChildDetail } from "@/lib/api/children";
-import { getErrorMessage } from "@/lib/axios";
+import { getErrorMessage, resolveMediaUrl } from "@/lib/axios";
 import { isLegacyCarnet } from "@/lib/carnet";
 
 /**
@@ -136,7 +136,7 @@ export default function ChildCredentialPage() {
           {child.photoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={child.photoUrl}
+              src={resolveMediaUrl(child.photoUrl)}
               alt={`Foto de ${child.name} ${child.lastName}`}
               className="size-28 shrink-0 rounded-lg border object-cover"
             />

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { connection } from "next/server";
 import { getPublicChild, isCredentialNotFound } from "@/lib/api/public-child";
+import { resolveMediaUrl } from "@/lib/axios";
 
 export const metadata: Metadata = {
   title: "Credencial del niño",
@@ -78,7 +79,7 @@ export default async function PublicChildPage({ params }: PageProps<"/publico/ni
         {photoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={photoUrl}
+            src={resolveMediaUrl(photoUrl)}
             alt={`Foto de ${name} ${lastName}`}
             className="mx-auto mt-4 size-32 rounded-lg border object-cover"
           />

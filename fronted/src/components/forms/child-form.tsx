@@ -24,6 +24,19 @@ const tutorSchema = z.object({
   isPrimary: z.boolean(),
 });
 
+/**
+ * El backend devuelve la foto como ruta relativa (`/uploads/<archivo>`); se
+ * acepta también una URL absoluta por si el cliente la guarda en otro servicio.
+ */
+const photoUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "La foto es obligatoria")
+  .refine(
+    (value) => /^\/uploads\/[A-Za-z0-9._-]+$/.test(value) || /^https?:\/\/\S+$/.test(value),
+    "La foto debe ser una ruta /uploads/... o una URL válida",
+  );
+
 const childSchema = z
   .object({
     name: z.string().min(1, "El nombre es obligatorio"),
@@ -32,7 +45,7 @@ const childSchema = z
     sex: z.enum(["Varón", "Mujer"], {
       message: "Selecciona un sexo válido",
     }),
-    photoUrl: z.string().trim().min(1, "La foto es obligatoria").url("La foto debe ser una URL válida"),
+    photoUrl: photoUrlSchema,
     diagnostico: z.string().trim().min(1, "El diagnóstico es obligatorio"),
     // Carnet del niño: obligatorio y único. Distinto del `carnet` de cada tutor.
     carnet: z

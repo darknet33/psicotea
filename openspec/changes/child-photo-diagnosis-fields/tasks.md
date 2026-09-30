@@ -40,6 +40,12 @@
 
 - [x] 6.1 `npx tsc --noEmit` y lint sin errores en `backend/`.
 - [x] 6.2 `npx tsc --noEmit` y lint sin errores en `fronted/`.
-- [ ] 6.3 Probar `POST /uploads/image`: sin token → 401; tipo no imagen → 400; >5MB → 413; imagen válida → 201 con URL accesible por `GET /uploads/<nombre>`.
-- [ ] 6.4 Probar `POST /children` y `PATCH /children/:id`: sin `photoUrl`/`diagnostico` → 400; correcto → 201/200 incluyendo `photoUrl`, `diagnostico` y `address` de tutores.
-- [ ] 6.5 Verificar en UI: drag & drop y cámara generan la foto, previsualizan y guardan; tutor con dirección se envía y se muestra.
+- [x] 6.3 Probar `POST /uploads/image`: sin token → 401; tipo no imagen → 400; >5MB → 413; imagen válida → 201 con URL accesible por `GET /uploads/<nombre>`.
+- [x] 6.4 Probar `POST /children` y `PATCH /children/:id`: sin `photoUrl`/`diagnostico` → 400; correcto → 201/200 incluyendo `photoUrl`, `diagnostico` y `address` de tutores.
+- [x] 6.5 Verificar en UI: drag & drop y cámara generan la foto, previsualizan y guardan; tutor con dirección se envía y se muestra.
+
+## 7. Bugs detectados y corregidos
+
+- [x] 7.1 La foto no cargaba: la subida devolvía una URL absoluta con el host del request y esa URL quedaba guardada en `photoUrl`; al cambiar de red/dispositivo la imagen daba 404. Corregido devolviendo una ruta relativa `/uploads/<archivo>` y resolviéndola en el frontend contra `NEXT_PUBLIC_API_URL` (`resolveMediaUrl`), con migración que deja las filas existentes en relativo.
+- [x] 7.2 `Badge` renderizaba un `<div>`, y al usarlo dentro de un `<p>` (página de detalle del niño) se producía el error de React `<div> cannot be a descendant of <p>` (error de hidratación en dev). Corregido renderizando `<span>` (`inline-flex`), válido como contenido de frase.
+- [x] 7.3 `backend/.gitignore` con `uploads/` sin anclar ignoraba también el código fuente de `src/uploads/`, dejándolo fuera de git. Corregido a `/uploads/` (anclado a la raíz).

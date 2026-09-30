@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Subida de imágenes desde el frontend. Define un endpoint autenticado que recibe el multipart, valida tipo y tamaño, guarda el archivo en disco y devuelve la URL absoluta servida estáticamente por el backend, usada como `photoUrl` de los niños.
+Subida de imágenes desde el frontend. Define un endpoint autenticado que recibe el multipart, valida tipo y tamaño, guarda el archivo en disco y devuelve la ruta servida estáticamente por el backend, usada como `photoUrl` de los niños.
 
 ## ADDED Requirements
 
@@ -10,11 +10,11 @@ Subida de imágenes desde el frontend. Define un endpoint autenticado que recibe
 
 El sistema SHALL exponer `POST /uploads/image` protegido por JWT, que recibe un archivo en el campo `file` (multipart/form-data). Debe aceptar imágenes `image/jpeg`, `image/png` y `image/webp`, con un máximo de 5 MB por archivo, y guardar cada archivo con un nombre único en el directorio de uploads.
 
-La respuesta SHALL ser `{ url: "http://<host>:<puerto>/uploads/<nombre>" }`, donde el host/puerto son los del request, de modo que el frontend pueda cargar la imagen directamente.
+La respuesta SHALL ser `{ url: "/uploads/<nombre>" }`, una ruta relativa al origen del backend (no la URL absoluta: un host embebido en el request rompe la foto al cambiar de red o de dispositivo). El frontend SHALL resolver esa ruta contra `NEXT_PUBLIC_API_URL` antes de usarla en un `<img>`.
 
 #### Scenario: Subida exitosa
 - **WHEN** un usuario autenticado sube una imagen válida
-- **THEN** el sistema devuelve 201 con la URL absoluta de la imagen y el archivo queda disponible en `GET /uploads/<nombre>`
+- **THEN** el sistema devuelve 201 con la ruta `/uploads/<nombre>` y el archivo queda disponible en `GET /uploads/<nombre>`
 
 #### Scenario: Sin autenticación
 - **WHEN** se llama al endpoint sin token JWT válido

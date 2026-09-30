@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImage } from "@/lib/api/uploads";
-import { getErrorMessage } from "@/lib/axios";
+import { getErrorMessage, resolveMediaUrl } from "@/lib/axios";
 import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -77,7 +77,7 @@ export function PhotoUpload({ value, onChange, invalid = false }: PhotoUploadPro
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const preview = localPreview ?? (value || null);
+  const preview = localPreview ?? (value ? resolveMediaUrl(value) : null);
 
   useEffect(() => {
     return () => {
