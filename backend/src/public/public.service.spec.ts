@@ -49,7 +49,7 @@ function createService(options: {
 const CHILD = {
   name: 'Martina',
   lastName: 'Gómez',
-  carnet: 'DNI 10293847',
+  carnet: 'CI 10293847',
   dateOfBirth: new Date('2019-04-12'),
   photoUrl: 'https://cdn.example.com/martina.jpg',
   tutors: [
@@ -109,7 +109,7 @@ describe('PublicService.getChildByCredential', () => {
 
     const result = await service.getChildByCredential('abc.def');
 
-    expect(result.carnet).toBe('DNI 10293847');
+    expect(result.carnet).toBe('CI 10293847');
   });
 
   it('no expone diagnóstico, token ni contenido de informes', async () => {
@@ -132,7 +132,7 @@ describe('PublicService.getChildByCredential', () => {
             ...CHILD.tutors[0],
             tutor: {
               ...CHILD.tutors[0].tutor,
-              carnet: 'DNI 45231876',
+              carnet: 'CI 45231876',
               email: 'lucia@example.com',
             },
           },
@@ -149,7 +149,7 @@ describe('PublicService.getChildByCredential', () => {
     expect(serialized).not.toContain('informe.pdf');
     // El carnet del tutor sí se excluye: solo se expone el del niño, que ya
     // viene impreso en la credencial escaneada.
-    expect(serialized).not.toContain('DNI 45231876');
+    expect(serialized).not.toContain('CI 45231876');
     expect(serialized).not.toContain('lucia@example.com');
   });
 

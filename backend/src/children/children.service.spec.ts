@@ -75,14 +75,14 @@ function createDto(overrides: Partial<CreateChildDto> = {}): CreateChildDto {
     sex: 'Mujer',
     photoUrl: '',
     diagnostico: '',
-    carnet: 'DNI 10293847',
+    carnet: 'CI 10293847',
     tutors: [
       {
         name: 'Lucía',
         lastName: 'Pérez',
         relationship: 'Madre',
         phone: '987654321',
-        carnet: 'DNI 45231876',
+        carnet: 'CI 45231876',
         isPrimary: true,
       },
     ],
@@ -95,11 +95,11 @@ describe('ChildrenService - carnet del niño', () => {
     it('guarda el carnet con espacios recortados', async () => {
       const { service, tx } = createService();
 
-      await service.create(createDto({ carnet: '  DNI 10293847  ' }));
+      await service.create(createDto({ carnet: '  CI 10293847  ' }));
 
       expect(tx.child.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ carnet: 'DNI 10293847' }),
+          data: expect.objectContaining({ carnet: 'CI 10293847' }),
         }),
       );
     });
@@ -155,12 +155,12 @@ describe('ChildrenService - carnet del niño', () => {
       // MySQL no viola el índice único cuando el valor no cambia, así que
       // nunca se lanza P2002 y el caso normal debe pasar limpio.
       await expect(
-        service.update(CHILD_ID, { carnet: 'DNI 10293847' } as UpdateChildDto),
+        service.update(CHILD_ID, { carnet: 'CI 10293847' } as UpdateChildDto),
       ).resolves.toBeDefined();
 
       expect(tx.child.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ carnet: 'DNI 10293847' }),
+          data: expect.objectContaining({ carnet: 'CI 10293847' }),
         }),
       );
     });
@@ -183,7 +183,7 @@ describe('ChildrenService - carnet del niño', () => {
       );
 
       await expect(
-        service.update(CHILD_ID, { carnet: 'DNI 99999999' } as UpdateChildDto),
+        service.update(CHILD_ID, { carnet: 'CI 99999999' } as UpdateChildDto),
       ).rejects.toThrow(BadRequestException);
     });
 

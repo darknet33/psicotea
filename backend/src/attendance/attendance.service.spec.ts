@@ -6,7 +6,7 @@ import { CredentialResolverService } from '../common/credential/credential-resol
 import { RequestUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../prisma/prisma.service';
 
-const DATE = new Date(2026, 0, 15);
+const DATE = new Date(Date.UTC(2026, 0, 15));
 
 function adminUser(): RequestUser {
   return {
@@ -29,6 +29,8 @@ function createService(options: {
   specialistIdForUser?: number | null;
   existingAttendance?: { id: number } | null;
   resolveThrows?: Error;
+  carnetFound?: { id: number } | null;
+  findManyResult?: unknown[];
 }) {
   const {
     childId = 7,
@@ -36,6 +38,8 @@ function createService(options: {
     specialistIdForUser = 3,
     existingAttendance = null,
     resolveThrows,
+    carnetFound = null,
+    findManyResult = [],
   } = options;
 
   const resolveActiveChildId = jest.fn(async () => {
@@ -78,6 +82,10 @@ function createService(options: {
     },
   );
 
+  const findFirst = jest.fn(async () => carnetFound);
+
+  const findMany = jest.fn(async () => findManyResult);
+
   const upsert = jest.fn(async () => ({
     id: 99,
     childId,
@@ -90,8 +98,8 @@ function createService(options: {
   }));
 
   const prisma = {
-    attendance: { findUnique, upsert },
-    child: { findUnique },
+    attendance: { findUnique, upsert, findMany },
+    child: { findUnique, findFirst },
   } as unknown as PrismaService;
 
   const childrenService = {
@@ -107,6 +115,8 @@ function createService(options: {
     resolveActiveChildId,
     upsert,
     findUnique,
+    findFirst,
+    findMany,
   };
 }
 
@@ -150,6 +160,41 @@ describe('AttendanceService.scan', () => {
     await expect(service.scan({ code: 'malo' }, adminUser())).rejects.toThrow(
       NotFoundException,
     );
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('puede escanear escribiendo el carnet del niño en vez del credentialCode', async () => {
+    const { service, upsert, findFirst } = createService({
+      resolveThrows: new NotFoundException('Credencial no válida.'),
+      carnetFound: { id: 7 },
+    });
+
+    const result = await service.scan({ code: 'CI 45231876' }, adminUser());
+
+    expect(result.created).toBe(true);
+    expect(result.child).toEqual({ id: 7, name: 'Martina', lastName: 'Gómez' });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { carnet: 'CI 45231876', isActive: true },
+      }),
+    );
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ childId: 7 }),
+      }),
+    );
+  });
+
+  it('lanza 404 si el carnet escrito a mano no existe o el niño está inactivo', async () => {
+    const { service, upsert, findFirst } = createService({
+      resolveThrows: new NotFoundException('Credencial no válida.'),
+      carnetFound: null,
+    });
+
+    await expect(
+      service.scan({ code: 'NO-EXISTE' }, adminUser()),
+    ).rejects.toThrow(NotFoundException);
+    expect(findFirst).toHaveBeenCalled();
     expect(upsert).not.toHaveBeenCalled();
   });
 
@@ -218,5 +263,105 @@ describe('AttendanceService.scan', () => {
     await expect(
       service.scan({ code: 'abc.def' }, adminUser()),
     ).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('AttendanceService.findByDate', () => {
+  const DATE_FROM = new Date(Date.UTC(2026, 0, 15));
+
+  it('lista las asistencias de la fecha pedida para ADMIN', async () => {
+    const { service, findMany } = createService({
+      findManyResult: [{ id: 1 }],
+    });
+
+    const result = await service.findByDate(DATE_FROM, adminUser());
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { date: DATE_FROM },
+        orderBy: [{ child: { lastName: 'asc' } }, { child: { name: 'asc' } }],
+      }),
+    );
+    expect(result).toHaveLength(1);
+  });
+
+  it('filtra por especialista asignado cuando el usuario es ESPECIALISTA', async () => {
+    const { service, findMany } = createService({
+      specialistIdForUser: 3,
+      findManyResult: [{ id: 1 }],
+    });
+
+    await service.findByDate(DATE_FROM, specialistUser());
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { date: DATE_FROM, child: { specialistId: 3 } },
+      }),
+    );
+  });
+
+  it('devuelve lista vacía si el especialista no existe', async () => {
+    const { service, findMany } = createService({ specialistIdForUser: null });
+
+    const result = await service.findByDate(DATE_FROM, specialistUser());
+
+    expect(findMany).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
+  });
+});
+
+describe('AttendanceService.daysInMonth', () => {
+  it('devuelve las fechas con asistencia como AAAA-MM-DD', async () => {
+    const { service, findMany } = createService({
+      findManyResult: [
+        { date: new Date(Date.UTC(2026, 0, 15)) },
+        { date: new Date(Date.UTC(2026, 0, 29)) },
+      ],
+    });
+
+    const result = await service.daysInMonth(2026, 1, adminUser());
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          date: {
+            gte: new Date(Date.UTC(2026, 0, 1)),
+            lt: new Date(Date.UTC(2026, 1, 1)),
+          },
+        },
+        distinct: ['date'],
+      }),
+    );
+    expect(result).toEqual(['2026-01-15', '2026-01-29']);
+  });
+
+  it('filtra por especialista en el where', async () => {
+    const { service, findMany } = createService({
+      specialistIdForUser: 3,
+      findManyResult: [{ date: new Date(Date.UTC(2026, 0, 15)) }],
+    });
+
+    await service.daysInMonth(2026, 1, specialistUser());
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          date: {
+            gte: new Date(Date.UTC(2026, 0, 1)),
+            lt: new Date(Date.UTC(2026, 1, 1)),
+          },
+          child: { specialistId: 3 },
+        },
+      }),
+    );
+  });
+
+  it('devuelve lista vacía si el especialista no existe', async () => {
+    const { service, findMany } = createService({ specialistIdForUser: null });
+
+    const result = await service.daysInMonth(2026, 1, specialistUser());
+
+    expect(findMany).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
   });
 });

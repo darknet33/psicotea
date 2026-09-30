@@ -36,13 +36,13 @@ async function main() {
             'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=640&q=80',
           diagnostico:
             'Trastorno por déficit de atención e hiperactividad (TDAH)',
-          carnet: 'DNI 10293847',
+          carnet: 'CI 10293847',
           credentialCode: credentialToken.generate(),
         },
       });
 
       const tutor = await tx.tutor.upsert({
-        where: { carnet: 'DNI 45231876' },
+        where: { carnet: 'CI 45231876' },
         update: {},
         create: {
           name: 'Lucía',
@@ -50,7 +50,7 @@ async function main() {
           phone: '+51 987 654 321',
           email: 'lucia.perez@example.com',
           address: 'Av. Los Álamos 1234, Lince, Lima',
-          carnet: 'DNI 45231876',
+          carnet: 'CI 45231876',
         },
       });
 

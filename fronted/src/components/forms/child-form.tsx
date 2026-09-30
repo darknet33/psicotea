@@ -289,7 +289,7 @@ export function ChildForm({
             <Input
               id="carnet"
               maxLength={191}
-              placeholder="Ej: DNI 10293847"
+              placeholder="Ej: CI 10293847"
               {...register("carnet")}
               aria-invalid={Boolean(errors.carnet || carnetServerError)}
               aria-describedby={
