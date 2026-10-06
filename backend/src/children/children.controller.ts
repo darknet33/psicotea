@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { ChildrenService } from './children.service';
@@ -19,6 +20,7 @@ import { QueryChildrenDto } from './dto/query-children.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { DecimalToNumberInterceptor } from '../common/interceptors/decimal-to-number.interceptor';
 import { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
 
 const READ_ROLES = [
@@ -30,6 +32,7 @@ const WRITE_ROLES = [Role.ADMIN, Role.PERSONAL_ADMINISTRATIVO];
 
 @Controller('children')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(DecimalToNumberInterceptor)
 export class ChildrenController {
   constructor(private readonly childrenService: ChildrenService) {}
 

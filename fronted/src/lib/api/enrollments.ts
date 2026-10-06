@@ -1,8 +1,18 @@
 import { api } from "@/lib/axios";
-import type { Enrollment, EnrollmentInput, QueryEnrollments } from "@/types/enrollment";
+import type {
+  Enrollment,
+  EnrollmentInput,
+  EnrollmentPrefill,
+  ListEnrollmentsResponse,
+  QueryEnrollments,
+} from "@/types/enrollment";
 
-export async function listEnrollments(query: QueryEnrollments = {}): Promise<Enrollment[]> {
-  const { data } = await api.get<Enrollment[]>("/enrollments", { params: query });
+export async function listEnrollments(
+  query: QueryEnrollments = {},
+): Promise<ListEnrollmentsResponse> {
+  const { data } = await api.get<ListEnrollmentsResponse>("/enrollments", {
+    params: query,
+  });
   return data;
 }
 
@@ -13,6 +23,13 @@ export async function getEnrollment(id: number): Promise<Enrollment> {
 
 export async function listEnrollmentsByChild(childId: number): Promise<Enrollment[]> {
   const { data } = await api.get<Enrollment[]>(`/enrollments/child/${childId}`);
+  return data;
+}
+
+export async function getEnrollmentPrefill(childId: number): Promise<EnrollmentPrefill> {
+  const { data } = await api.get<EnrollmentPrefill>(
+    `/enrollments/child/${childId}/prefill`,
+  );
   return data;
 }
 

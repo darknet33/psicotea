@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -6,18 +9,21 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Min,
+  ValidateNested,
 } from 'class-validator';
 import { EnrollmentStatus } from '@prisma/client';
+import { ScheduleDayDto } from './schedule-day.dto';
 
 export class UpdateEnrollmentDto {
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  childId?: number;
-
-  @IsOptional()
   @IsDateString()
   startDate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1, { message: 'La duración debe ser mayor a cero' })
+  durationDays?: number;
 
   @IsOptional()
   @IsDateString()
@@ -31,6 +37,19 @@ export class UpdateEnrollmentDto {
   @IsNumber()
   @IsPositive()
   monthlyFee?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ScheduleDayDto)
+  scheduleDays?: ScheduleDayDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @IsPositive({ each: true })
+  areaIds?: number[];
 
   @IsOptional()
   @IsString()

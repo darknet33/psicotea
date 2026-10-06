@@ -6,11 +6,24 @@
  * para no duplicar el algoritmo de firma.
  *
  *   npx ts-node prisma/backfill-credential-codes.ts
+ *
+ * Se usa SQL crudo en lugar del cliente tipado a propósito: este script tiene
+ * que correr en un estado intermedio de la base, cuando la migración
+ * `credential_code_required` todavía no ha aplicado el NOT NULL. El modelo
+ * `Child` de schema.prisma ya declara `credentialCode` como obligatorio, así
+ * que Prisma lo tiparía como `String` y fallaría al encontrar NULL.
  */
 import 'dotenv/config';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { CredentialTokenService } from '../src/common/credential/credential-token.service';
+
+type ChildRow = {
+  id: number;
+  name: string;
+  lastName: string;
+  credentialCode: string | null;
+};
 
 async function main() {
   const prisma = new PrismaClient();
@@ -25,10 +38,11 @@ async function main() {
   }
 
   try {
-    const children = await prisma.child.findMany({
-      select: { id: true, name: true, lastName: true, credentialCode: true },
-      orderBy: { id: 'asc' },
-    });
+    const children = await prisma.$queryRaw<ChildRow[]>`
+      SELECT \`id\`, \`name\`, \`lastName\`, \`credentialCode\`
+      FROM \`Child\`
+      ORDER BY \`id\` ASC
+    `;
 
     let generados = 0;
     let yaValidos = 0;
@@ -42,10 +56,10 @@ async function main() {
       if (child.credentialCode) invalidos += 1;
 
       const credentialCode = tokenService.generate();
-      await prisma.child.update({
-        where: { id: child.id },
-        data: { credentialCode },
-      });
+      await prisma.$executeRaw`
+        UPDATE \`Child\` SET \`credentialCode\` = ${credentialCode}
+        WHERE \`id\` = ${child.id}
+      `;
       generados += 1;
       console.log(
         `  ${child.id} ${child.name} ${child.lastName} -> ${credentialCode}`,

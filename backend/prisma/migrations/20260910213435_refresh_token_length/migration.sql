@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `refreshtoken` MODIFY `token` VARCHAR(512) NOT NULL;
+ALTER TABLE `RefreshToken` MODIFY `token` VARCHAR(512) NOT NULL;

@@ -66,6 +66,22 @@ async function main() {
     console.log('Seed completado. Niño de ejemplo creado.');
   }
 
+  const areasIniciales = [
+    'Lenguaje',
+    'Terapia ocupacional',
+    'Conducta',
+    'Aprendizaje',
+    'Socialización',
+  ];
+
+  for (const name of areasIniciales) {
+    await prisma.area.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
   console.log(
     `Seed completado. Usuario admin: ${admin.email} (password: Admin1234)`,
   );

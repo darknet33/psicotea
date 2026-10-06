@@ -27,7 +27,7 @@ export class CreatePaymentDto {
   paymentDate: string;
 
   @IsEnum(PaymentMethod, {
-    message: 'El método debe ser EFECTIVO, TRANSFERENCIA, TARJETA o CHEQUE',
+    message: 'El método debe ser EFECTIVO, QR o TRANSFERENCIA',
   })
   method: PaymentMethod;
 

@@ -87,14 +87,30 @@ Cada inscripción deberá registrar como mínimo:
 
 * Niño.
 * Fecha de inscripción.
-* Fecha de inicio.
-* Fecha de finalización, cuando corresponda.
+* Duración en días; el sistema calcula la fecha de finalización a partir de la fecha de inscripción y la duración.
+* Fecha de finalización calculada.
 * Estado.
-* Información del tutor.
-* Servicio o modalidad correspondiente, si aplica.
+* Matrícula mensual.
+* Agenda semanal: días de la semana y turno (todo el día, mañana o tarde), con un máximo de un turno por día.
+* Áreas de trabajo (catálogo administrable; una inscripción puede tener varias).
 * Observaciones.
+* Pago inicial opcional (monto, método y período), registrado junto con la inscripción.
+
+Cada niño puede tener como máximo una inscripción activa a la vez. Para inscribirlo de nuevo primero debe retirarse o desactivarse la inscripción vigente; al dejar de estar activa, si no se indica una fecha de fin, el sistema la fija en el día actual.
+
+Al reinscribir a un niño, el sistema ofrece como valores sugeridos el monto, las áreas y la agenda de su inscripción anterior, con la fecha de inscripción propuesta igual a la fecha de finalización anterior. El usuario puede modificar esos valores y la inscripción anterior no se cierra automáticamente.
 
 El sistema deberá conservar el historial de las inscripciones cuando un niño vuelva a ingresar después de haber sido retirado.
+
+### Saldo
+
+Para cada inscripción el sistema muestra, calculado al vuelo:
+
+* Facturado: matrícula mensual por los meses calendario comprendidos entre la fecha de inicio y la fecha de finalización (o el día actual si sigue activa).
+* Pagado: suma de los pagos asociados.
+* Saldo: facturado menos pagado.
+
+El listado de inscripciones se presenta agrupado por niño, con los totales del grupo y sin crear inscripciones desde ahí; el alta se realiza desde el expediente del niño.
 
 ### Estados iniciales
 

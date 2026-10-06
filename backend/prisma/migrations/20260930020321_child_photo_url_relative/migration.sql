@@ -4,7 +4,7 @@
 -- host de la petición, y esa URL quedaba guardada en la base. Al cambiar de red
 -- o al abrir la app desde otro dispositivo, la foto dejaba de cargar. El
 -- frontend resuelve ahora la ruta contra `NEXT_PUBLIC_API_URL`.
-UPDATE `child`
+UPDATE `Child`
 SET `photoUrl` = SUBSTRING(
     `photoUrl`,
     LOCATE('/uploads/', `photoUrl`)
