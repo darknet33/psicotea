@@ -27,7 +27,7 @@ const paymentSchema = z.object({
   childId: z.number().int().positive("Selecciona un niño"),
   amount: z.number().positive("El monto debe ser mayor a cero"),
   paymentDate: z.string().min(1, "La fecha de pago es obligatoria"),
-  method: z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "CHEQUE"], {
+  method: z.enum(PAYMENT_METHODS, {
     message: "Selecciona un método",
   }),
   periodStart: z.string().min(1, "Indica el inicio del periodo"),

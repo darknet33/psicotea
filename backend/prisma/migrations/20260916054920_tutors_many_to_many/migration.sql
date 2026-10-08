@@ -10,7 +10,7 @@
 
 */
 -- AlterTable
-ALTER TABLE `child` DROP COLUMN `parentCarnet`,
+ALTER TABLE `Child` DROP COLUMN `parentCarnet`,
     DROP COLUMN `parentEmail`,
     DROP COLUMN `parentLastName`,
     DROP COLUMN `parentName`,

@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { PaymentsService } from './payments.service';
@@ -17,11 +18,13 @@ import { QueryPaymentsDto } from './dto/query-payments.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { DecimalToNumberInterceptor } from '../common/interceptors/decimal-to-number.interceptor';
 
 const PAYMENT_ROLES = [Role.ADMIN, Role.PERSONAL_ADMINISTRATIVO];
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(DecimalToNumberInterceptor)
 @Roles(...PAYMENT_ROLES)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}

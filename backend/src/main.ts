@@ -7,14 +7,19 @@ import { getUploadsDir } from './uploads/uploads.constants';
 
 function getNetworkAddress(): string {
   const nets = networkInterfaces();
+  // Las interfaces de Docker (docker0, br-*) también son IPv4 no internas y
+  // salen antes que la wifi al enumerarlas, así que se descartan: sus IPs no
+  // son alcanzables desde un móvil.
+  const candidates: string[] = [];
   for (const name of Object.keys(nets)) {
+    if (/^(docker|br-|veth|virbr)/.test(name)) continue;
     for (const net of nets[name] ?? []) {
-      if (net.family === 'IPv4' && !net.internal) {
-        return net.address;
-      }
+      if (net.family !== 'IPv4' || net.internal) continue;
+      candidates.push(net.address);
+      if (/^(wl|wlan|en|eth)/.test(name)) return net.address;
     }
   }
-  return '0.0.0.0';
+  return candidates[0] ?? '0.0.0.0';
 }
 
 async function bootstrap() {

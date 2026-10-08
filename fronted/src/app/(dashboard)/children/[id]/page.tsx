@@ -13,10 +13,16 @@ import { EnrollmentForm } from "@/components/forms/enrollment-form";
 import { PaymentForm } from "@/components/forms/payment-form";
 import { formatAge, formatDate, formatPrice } from "@/lib/format";
 import { getChild, removeChild, type ChildDetail } from "@/lib/api/children";
+import { listEnrollmentsByChild } from "@/lib/api/enrollments";
 import { getErrorMessage, resolveMediaUrl } from "@/lib/axios";
 import { isLegacyCarnet } from "@/lib/carnet";
 import { useAuthStore } from "@/stores/auth-store";
-import type { Enrollment, EnrollmentStatus } from "@/types/enrollment";
+import {
+  SHIFT_LABELS,
+  WEEKDAY_LABELS,
+  type Enrollment,
+  type EnrollmentStatus,
+} from "@/types/enrollment";
 import type { Payment } from "@/types/payment";
 
 function StatusBadge({ status }: { status: EnrollmentStatus }) {
@@ -38,6 +44,7 @@ export default function ChildDetailPage() {
   const canWrite = role === "ADMIN" || role === "PERSONAL_ADMINISTRATIVO";
 
   const [child, setChild] = useState<ChildDetail | null>(null);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -49,9 +56,13 @@ export default function ChildDetailPage() {
 
     async function run() {
       try {
-        const data = await getChild(childId);
+        const [data, enrollmentList] = await Promise.all([
+          getChild(childId),
+          listEnrollmentsByChild(childId),
+        ]);
         if (cancelled) return;
         setChild(data);
+        setEnrollments(enrollmentList);
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -68,9 +79,7 @@ export default function ChildDetailPage() {
   }, [childId, refreshKey]);
 
   function handleCreatedEnrollment(enrollment: Enrollment) {
-    setChild((prev) =>
-      prev ? { ...prev, enrollments: [enrollment, ...prev.enrollments] } : prev,
-    );
+    setEnrollments((prev) => [enrollment, ...prev]);
   }
 
   function handleCreatedPayment(payment: Payment) {
@@ -262,23 +271,57 @@ export default function ChildDetailPage() {
           )}
         </CardHeader>
         <CardContent>
-          {child.enrollments.length === 0 ? (
+          {enrollments.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin inscripciones registradas.</p>
           ) : (
             <div className="divide-y rounded-lg border">
-              {child.enrollments.map((enrollment) => (
-                <div key={enrollment.id} className="flex flex-col gap-1 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p>
-                      {formatDate(enrollment.startDate)}
-                      {enrollment.endDate ? ` → ${formatDate(enrollment.endDate)}` : " → presente"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Matrícula mensual: {formatPrice(enrollment.monthlyFee)}
-                      {enrollment.notes ? ` · ${enrollment.notes}` : ""}
-                    </p>
+              {enrollments.map((enrollment) => (
+                <div key={enrollment.id} className="flex flex-col gap-2 p-3 text-sm">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p>
+                        {formatDate(enrollment.startDate)}
+                        {enrollment.endDate
+                          ? ` → ${formatDate(enrollment.endDate)}`
+                          : " → presente"}
+                        {enrollment.durationDays
+                          ? ` · ${enrollment.durationDays} días`
+                          : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Matrícula mensual: {formatPrice(enrollment.monthlyFee)}
+                        {enrollment.facturado !== undefined
+                          ? ` · Saldo: ${formatPrice(enrollment.saldo ?? 0)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={enrollment.status} />
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/enrollments/${enrollment.id}`}>Ver detalle</Link>
+                      </Button>
+                    </div>
                   </div>
-                  <StatusBadge status={enrollment.status} />
+
+                  {enrollment.scheduleDays && enrollment.scheduleDays.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {enrollment.scheduleDays.map((day) => (
+                        <Badge key={day.dayOfWeek} variant="secondary">
+                          {WEEKDAY_LABELS[day.dayOfWeek]}: {SHIFT_LABELS[day.shift]}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {enrollment.areas && enrollment.areas.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {enrollment.areas.map((area) => (
+                        <Badge key={area.id} variant="outline">
+                          {area.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -336,7 +379,13 @@ export default function ChildDetailPage() {
           <EnrollmentForm
             open={enrollmentOpen}
             onOpenChange={setEnrollmentOpen}
-            defaultChildId={child.id}
+            childId={child.id}
+            childName={`${child.name} ${child.lastName}`}
+            warning={
+              enrollments.some((enrollment) => enrollment.status === "ACTIVO")
+                ? "El niño ya tiene una inscripción activa. Para crear otra, retírala o desactívala primero."
+                : undefined
+            }
             onCreated={handleCreatedEnrollment}
           />
           <PaymentForm

@@ -73,7 +73,9 @@ export default function DashboardPage() {
 
       const monthPrefix = start.slice(0, 7);
       const monthEnrollments = enrollments
-        ? enrollments.filter((enrollment) => enrollment.startDate.slice(0, 7) === monthPrefix)
+        ? enrollments.groups
+            .flatMap((group) => group.enrollments)
+            .filter((enrollment) => enrollment.startDate.slice(0, 7) === monthPrefix)
         : null;
       const monthTotal = payments ? payments.reduce((sum, payment) => sum + payment.amount, 0) : null;
 

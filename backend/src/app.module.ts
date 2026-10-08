@@ -12,6 +12,7 @@ import { PublicModule } from './public/public.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { PaymentsModule } from './payments/payments.module';
+import { AreasModule } from './areas/areas.module';
 import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { UploadsModule } from './uploads/uploads.module';
     AttendanceModule,
     EnrollmentsModule,
     PaymentsModule,
+    AreasModule,
     UploadsModule,
   ],
   controllers: [AppController],

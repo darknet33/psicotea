@@ -10,10 +10,10 @@
 
 */
 -- DropForeignKey
-ALTER TABLE `child` DROP FOREIGN KEY `Child_parentId_fkey`;
+ALTER TABLE `Child` DROP FOREIGN KEY `Child_parentId_fkey`;
 
 -- AlterTable
-ALTER TABLE `child` DROP COLUMN `parentId`,
+ALTER TABLE `Child` DROP COLUMN `parentId`,
     ADD COLUMN `parentCarnet` VARCHAR(191) NOT NULL,
     ADD COLUMN `parentEmail` VARCHAR(191) NULL,
     ADD COLUMN `parentLastName` VARCHAR(191) NOT NULL,

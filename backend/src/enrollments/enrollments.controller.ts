@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { EnrollmentsService } from './enrollments.service';
@@ -17,11 +18,13 @@ import { QueryEnrollmentsDto } from './dto/query-enrollments.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { DecimalToNumberInterceptor } from '../common/interceptors/decimal-to-number.interceptor';
 
 const ENROLLMENT_ROLES = [Role.ADMIN, Role.PERSONAL_ADMINISTRATIVO];
 
 @Controller('enrollments')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(DecimalToNumberInterceptor)
 @Roles(...ENROLLMENT_ROLES)
 export class EnrollmentsController {
   constructor(private readonly enrollmentsService: EnrollmentsService) {}
@@ -34,6 +37,11 @@ export class EnrollmentsController {
   @Get('child/:childId')
   findByChild(@Param('childId', ParseIntPipe) childId: number) {
     return this.enrollmentsService.findByChild(childId);
+  }
+
+  @Get('child/:childId/prefill')
+  getPrefill(@Param('childId', ParseIntPipe) childId: number) {
+    return this.enrollmentsService.getPrefill(childId);
   }
 
   @Get(':id')

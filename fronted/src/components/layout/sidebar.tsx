@@ -14,6 +14,7 @@ import {
   UserCog,
   Wallet,
   Tags,
+  LayoutGrid,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -65,6 +66,12 @@ const NAV_SECTIONS: NavSection[] = [
         label: "Pagos",
         icon: CreditCard,
         roles: ["ADMIN", "PERSONAL_ADMINISTRATIVO"],
+      },
+      {
+        href: "/areas",
+        label: "Áreas",
+        icon: LayoutGrid,
+        roles: ["ADMIN"],
       },
     ],
   },

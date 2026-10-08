@@ -1,4 +1,4 @@
-export const PAYMENT_METHODS = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "CHEQUE"] as const;
+export const PAYMENT_METHODS = ["EFECTIVO", "QR", "TRANSFERENCIA"] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
