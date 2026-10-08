@@ -1,0 +1,75 @@
+Registro niño
+
+agregar campo diagnostico
+
+
+en los tutores agregar campo direccion
+
+----
+
+
+cuando le inscribe
+
+periodos de mes----
+
+los pagos no estrictamente ese mismo día de cumplido el mes, los pagos se realiza por cuotas también.
+
+
+que turnos mañana tarde o ambos(M-T) 9- 12:30 14:00 - 17:30
+ 
+seleccionar los días dependiendo del dia mes completo (solo un turno), 3 veces a la semana(un turno), toda la semana y ambos.
+-------------------
+control de asistencia(solo mariela) por dia 
+
+opción  con control a credenciales para tema de asistencia
+
+--------------------------
+Especialistas
+	turnos y horarios. administradora escoje los horarios
+
+	pagos --- mensual de acuerdo a la fecha de ingreso.
+	y con controles de pagos por especilias	
+
+	Areas -- crud y elige las áreas
+	-psicomotricidad -- principal
+	-fisioterapia -- principal
+	-fonoaudiologia -- principal
+	-cognitiva -- principal
+
+
+	-independecia personal
+	-integracion sensorial	
+
+todos y se ordenas por hora
+
+a eleccion multiple
+
+-----------------------------
+
+cada especialista si tiene una planificación por dia o semana , y con observaciones por cada tratamiento.
+
+el tratamiento y actividades (nota de evolucion) es mas a la vista de el especialista pero es repetitivo hasta que la sesion pero tambien se puede anotar observacion.
+
+--informe evolutivo (Por niño - puede consultar el especialista las notas de evolucion)--
+
+-------------------------------------
+informe evaluación (por Niño) cuando ingresa el niño se realiza esa evaluación.
+
+informes (opcion con cargar documentos-padres podria ver ese informe)
+a principios de año mediados y finales
+
+
+--------------------------------------------
+
+Consultas pùblicas por niño para ver el historial y lo datos no necesita tener cuenta.
+
+
+
+
+
+
+
+
+	
+
+
