@@ -14,6 +14,14 @@ export async function listChildren(query: QueryChildren = {}): Promise<Child[]> 
   return data;
 }
 
+export async function getChildren(query: QueryChildren = {}): Promise<Child[]> {
+  return listChildren(query);
+}
+
+export async function searchChildren(search: string): Promise<Child[]> {
+  return listChildren({ search });
+}
+
 export async function getChild(id: number): Promise<ChildDetail> {
   const { data } = await api.get<ChildDetail>(`/children/${id}`);
   return data;

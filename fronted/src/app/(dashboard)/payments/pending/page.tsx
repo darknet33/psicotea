@@ -10,16 +10,35 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaymentForm } from "@/components/forms/payment-form";
 import { listPendingPayments } from "@/lib/api/payments";
-import { formatPrice } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 import { getErrorMessage } from "@/lib/axios";
 import { useAuthStore } from "@/stores/auth-store";
-import type { PendingPaymentPeriod } from "@/types/payment";
+import type { EnrollmentDebtItem, PendingPayment } from "@/types/payment";
+import { enrollmentTypeLabel } from "@/types/enrollment";
+
+function DebtRow({ debt, label }: { debt: EnrollmentDebtItem; label?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <div>
+        <p>
+          {label ? `${label}: ` : ""}
+          {enrollmentTypeLabel(debt.type)} · {formatDate(debt.startDate)} a{" "}
+          {debt.endDate ? formatDate(debt.endDate) : "presente"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Total: {formatPrice(debt.amount)} · Total pagado: {formatPrice(debt.pagado)}
+        </p>
+      </div>
+      <span className="font-semibold text-warning">{formatPrice(debt.saldo)}</span>
+    </div>
+  );
+}
 
 export default function PendingPaymentsPage() {
   const role = useAuthStore((state) => state.user?.role);
   const canWrite = role === "ADMIN" || role === "PERSONAL_ADMINISTRATIVO";
 
-  const [pending, setPending] = useState<PendingPaymentPeriod[]>([]);
+  const [pending, setPending] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -66,7 +85,7 @@ export default function PendingPaymentsPage() {
         <div className="flex flex-col gap-1">
           <h2 className="text-2xl font-bold tracking-tight">Pagos pendientes</h2>
           <p className="text-muted-foreground">
-            Niños con mensualidades sin cobrar. Se muestran los meses adeudados por cada uno.
+            Deudas por niño, separando la inscripción activa de las deudas anteriores.
           </p>
         </div>
       </div>
@@ -85,32 +104,46 @@ export default function PendingPaymentsPage() {
           <Skeleton className="h-20 w-full" />
         </div>
       ) : pending.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No hay deudas pendientes. Todos los cobros están al día.
-        </p>
+        <p className="text-sm text-muted-foreground">No hay deudas pendientes.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {pending.map((item) => (
             <Card key={item.child.id}>
               <CardContent className="flex flex-col gap-3 p-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <Link
-                      href={`/children/${item.child.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {item.child.name} {item.child.lastName}
-                    </Link>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {item.periods.map((period) => (
-                        <Badge key={period} variant="warning">
-                          {period.slice(0, 7)}
-                        </Badge>
+                  <Link
+                    href={`/children/${item.child.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {item.child.name} {item.child.lastName}
+                  </Link>
+                  <span className="font-semibold">
+                    Total: {formatPrice(item.totalDue)}
+                  </span>
+                </div>
+
+                {item.active && (
+                  <div className="rounded-md border p-2">
+                    <Badge variant="success" className="mb-2">
+                      Inscripción activa
+                    </Badge>
+                    <DebtRow debt={item.active} label="Saldo pendiente" />
+                  </div>
+                )}
+
+                {item.previousDebts.length > 0 && (
+                  <div className="rounded-md border p-2">
+                    <Badge variant="warning" className="mb-2">
+                      Deudas anteriores
+                    </Badge>
+                    <div className="space-y-2">
+                      {item.previousDebts.map((debt) => (
+                        <DebtRow key={debt.enrollmentId} debt={debt} />
                       ))}
                     </div>
                   </div>
-                  <span className="font-semibold">{formatPrice(item.amountDue)}</span>
-                </div>
+                )}
+
                 {canWrite && (
                   <Button size="sm" onClick={() => setPaymentChildId(item.child.id)}>
                     <Plus className="size-4" />
@@ -130,6 +163,16 @@ export default function PendingPaymentsPage() {
             if (!open) setPaymentChildId(null);
           }}
           defaultChildId={paymentChildId ?? undefined}
+          child={
+            paymentChildId !== null
+              ? (() => {
+                  const item = pending.find((p) => p.child.id === paymentChildId);
+                  return item
+                    ? { id: item.child.id, firstName: item.child.name, lastName: item.child.lastName }
+                    : { id: paymentChildId, firstName: "", lastName: "" };
+                })()
+              : null
+          }
           onCreated={handleCreated}
         />
       )}

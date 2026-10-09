@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus, TriangleAlert } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { PaymentForm } from "@/components/forms/payment-form";
@@ -12,6 +13,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { getErrorMessage } from "@/lib/axios";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Payment } from "@/types/payment";
+import { enrollmentTypeLabel } from "@/types/enrollment";
 
 export default function PaymentsPage() {
   const searchParams = useSearchParams();
@@ -68,7 +70,7 @@ export default function PaymentsPage() {
     },
     {
       key: "paymentDate",
-      header: "Fecha",
+      header: "Fecha de pago",
       cell: (payment) => formatDate(payment.paymentDate),
     },
     {
@@ -83,7 +85,7 @@ export default function PaymentsPage() {
     },
     {
       key: "period",
-      header: "Periodo",
+      header: "Período cubierto",
       cell: (payment) => (
         <span className="text-muted-foreground">
           {payment.periodStart.slice(0, 7)} a {payment.periodEnd.slice(0, 7)}
@@ -91,9 +93,41 @@ export default function PaymentsPage() {
       ),
     },
     {
-      key: "description",
-      header: "Descripción",
-      cell: (payment) => payment.description ?? "—",
+      key: "enrollment",
+      header: "Inscripción asociada",
+      cell: (payment) => {
+        const allocation =
+          payment.allocations?.find(
+            (item) => item.enrollmentId === payment.enrollmentId,
+          ) ?? payment.allocations?.[0];
+        const enrollment = allocation?.enrollment;
+        if (!enrollment) {
+          return <span className="text-muted-foreground">Sin inscripción</span>;
+        }
+        return (
+          <span className="text-muted-foreground">
+            {enrollmentTypeLabel(enrollment.type)} · {formatDate(enrollment.startDate)}
+            {enrollment.endDate ? ` a ${formatDate(enrollment.endDate)}` : " a presente"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Estado",
+      cell: (payment) => {
+        const isLate = new Date(payment.paymentDate) > new Date(payment.periodEnd);
+        const isDistributed = (payment.allocations?.length ?? 0) > 1;
+        if (!isLate && !isDistributed) {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {isLate && <Badge variant="warning">Atrasado</Badge>}
+            {isDistributed && <Badge variant="secondary">Distribuido</Badge>}
+          </div>
+        );
+      },
     },
   ];
 
@@ -147,6 +181,7 @@ export default function PaymentsPage() {
         <PaymentForm
           open={paymentOpen}
           onOpenChange={setPaymentOpen}
+          defaultChildId={childIdParam ? Number(childIdParam) : undefined}
           onCreated={() => setRefreshKey((key) => key + 1)}
         />
       )}
