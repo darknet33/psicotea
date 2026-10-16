@@ -18,6 +18,7 @@ import {
   ENROLLMENT_STATUSES,
   SHIFT_LABELS,
   WEEKDAY_LABELS,
+  enrollmentTypeLabel,
   type Enrollment,
   type EnrollmentStatus,
   type ListEnrollmentsResponse,
@@ -178,13 +179,13 @@ export default function EnrollmentsPage() {
                 </Link>
                 <div className="flex flex-wrap gap-2 text-xs">
                   <Badge variant="outline">
-                    Facturado: {formatPrice(group.totals.facturado)}
+                    Total de la inscripción: {formatPrice(group.totals.total)}
                   </Badge>
                   <Badge variant="secondary">
-                    Pagado: {formatPrice(group.totals.pagado)}
+                    Total pagado: {formatPrice(group.totals.pagado)}
                   </Badge>
                   <Badge variant={group.totals.saldo > 0 ? "warning" : "success"}>
-                    Saldo: {formatPrice(group.totals.saldo)}
+                    Saldo pendiente: {formatPrice(group.totals.saldo)}
                   </Badge>
                 </div>
               </CardHeader>
@@ -194,7 +195,8 @@ export default function EnrollmentsPage() {
                     <div key={enrollment.id} className="space-y-2 p-3 text-sm">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p>
+                          <p className="font-medium">
+                            {enrollmentTypeLabel(enrollment.type)} ·{" "}
                             {formatDate(enrollment.startDate)}
                             {enrollment.endDate
                               ? ` → ${formatDate(enrollment.endDate)}`
@@ -204,11 +206,13 @@ export default function EnrollmentsPage() {
                               : ""}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Matrícula: {formatPrice(enrollment.monthlyFee)} · Saldo:{" "}
-                            {formatPrice(enrollment.saldo ?? 0)}
+                            Monto: {formatPrice(enrollment.total)} · Total pagado:{" "}
+                            {formatPrice(enrollment.pagado)} · Saldo pendiente:{" "}
+                            {formatPrice(enrollment.saldo)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
+                          {enrollment.vigente && <Badge variant="success">Vigente</Badge>}
                           <StatusBadge status={enrollment.status} />
                           <Button asChild variant="ghost" size="sm">
                             <Link href={`/enrollments/${enrollment.id}`}>

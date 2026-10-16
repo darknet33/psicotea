@@ -3,6 +3,7 @@ import type {
   Enrollment,
   EnrollmentInput,
   EnrollmentPrefill,
+  EnrollmentSummary,
   ListEnrollmentsResponse,
   QueryEnrollments,
 } from "@/types/enrollment";
@@ -29,6 +30,15 @@ export async function listEnrollmentsByChild(childId: number): Promise<Enrollmen
 export async function getEnrollmentPrefill(childId: number): Promise<EnrollmentPrefill> {
   const { data } = await api.get<EnrollmentPrefill>(
     `/enrollments/child/${childId}/prefill`,
+  );
+  return data;
+}
+
+export async function getEnrollmentSummary(
+  childId: number,
+): Promise<EnrollmentSummary> {
+  const { data } = await api.get<EnrollmentSummary>(
+    `/enrollments/child/${childId}/summary`,
   );
   return data;
 }

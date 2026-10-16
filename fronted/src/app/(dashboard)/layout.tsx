@@ -1,10 +1,12 @@
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { RealtimeListener } from "@/components/layout/realtime-listener";
 
 export default function DashboardLayout({ children }: LayoutProps<"/">) {
   return (
     <ProtectedRoute>
+      <RealtimeListener />
       <div className="flex min-h-screen w-full">
         <Sidebar />
         <div className="flex flex-1 flex-col lg:pl-64">

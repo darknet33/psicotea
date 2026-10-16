@@ -13,6 +13,9 @@ export class InitialPaymentDto {
   @IsPositive({ message: 'El monto del pago inicial debe ser mayor a cero' })
   amount: number;
 
+  @IsDateString()
+  paymentDate: string;
+
   @IsEnum(PaymentMethod, {
     message: 'El método debe ser EFECTIVO, QR o TRANSFERENCIA',
   })

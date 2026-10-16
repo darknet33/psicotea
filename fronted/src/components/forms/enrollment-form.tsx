@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -16,25 +16,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateSelects } from "@/components/forms/date-selects";
 import { createEnrollment, getEnrollmentPrefill } from "@/lib/api/enrollments";
 import { listAreas } from "@/lib/api/areas";
 import { getErrorMessage } from "@/lib/axios";
-import { currentMonthInputValue, todayInputValue } from "@/lib/format";
+import { formatDate, todayInputValue } from "@/lib/format";
 import { PAYMENT_METHODS, type PaymentMethod } from "@/types/payment";
 import type { Area } from "@/types/area";
 import {
+  ENROLLMENT_TYPES,
+  ENROLLMENT_TYPE_LABELS,
   SHIFTS,
   SHIFT_LABELS,
   WEEKDAYS,
+  enrollmentTypeDays,
   type Enrollment,
   type ScheduleDay,
   type Shift,
 } from "@/types/enrollment";
 
-const DURATION_PRESETS = [30, 60, 90, 180, 365];
-
-function addDaysInput(value: string, days: number): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(days)) return "";
+function addDaysInput(value: string, days: number | null): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !days || !Number.isFinite(days)) {
+    return "";
+  }
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   date.setUTCDate(date.getUTCDate() + days);
@@ -42,12 +46,13 @@ function addDaysInput(value: string, days: number): string {
 }
 
 const enrollmentSchema = z.object({
-  startDate: z.string().min(1, "La fecha de inscripción es obligatoria"),
-  durationDays: z
-    .number()
-    .int("La duración debe ser un número entero de días")
-    .positive("La duración debe ser mayor a cero"),
-  monthlyFee: z.number().positive("La matrícula mensual debe ser mayor a cero"),
+  type: z.enum(ENROLLMENT_TYPES, {
+    message: "Selecciona el tipo de inscripción",
+  }),
+  startDate: z.string().min(1, "La fecha de inicio es obligatoria"),
+  amount: z
+    .number({ message: "El monto de la inscripción debe ser mayor a cero" })
+    .positive("El monto de la inscripción debe ser mayor a cero"),
   notes: z.string(),
 });
 
@@ -84,16 +89,17 @@ export function EnrollmentForm({
   } = useForm<EnrollmentFormValues>({
     resolver: zodResolver(enrollmentSchema),
     defaultValues: {
+      type: "MENSUAL",
       startDate: todayInputValue(),
-      durationDays: 90,
-      monthlyFee: 0,
+      amount: 0,
       notes: "",
     },
   });
 
+  const typeValue = useWatch({ control, name: "type" });
   const startDateValue = useWatch({ control, name: "startDate" });
-  const durationValue = useWatch({ control, name: "durationDays" });
-  const computedEndDate = addDaysInput(startDateValue ?? "", Number(durationValue));
+  const durationDays = enrollmentTypeDays(typeValue);
+  const computedEndDate = addDaysInput(startDateValue ?? "", durationDays);
 
   const [areas, setAreas] = useState<Area[]>([]);
   const [areaIds, setAreaIds] = useState<number[]>([]);
@@ -101,8 +107,8 @@ export function EnrollmentForm({
 
   const [chargeInitial, setChargeInitial] = useState(false);
   const [initialAmount, setInitialAmount] = useState(0);
+  const [initialPaymentDate, setInitialPaymentDate] = useState(todayInputValue());
   const [initialMethod, setInitialMethod] = useState<PaymentMethod>("EFECTIVO");
-  const [initialPeriod, setInitialPeriod] = useState(currentMonthInputValue());
   const [initialError, setInitialError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -133,8 +139,9 @@ export function EnrollmentForm({
       try {
         const prefill = await getEnrollmentPrefill(childId);
         if (cancelled) return;
+        setValue("type", prefill.type ?? "MENSUAL");
         setValue("startDate", prefill.startDate);
-        setValue("monthlyFee", prefill.monthlyFee);
+        setValue("amount", prefill.amount);
         setAreaIds(prefill.areaIds);
         setSchedule(
           Object.fromEntries(
@@ -159,8 +166,8 @@ export function EnrollmentForm({
       setSchedule({});
       setChargeInitial(false);
       setInitialAmount(0);
+      setInitialPaymentDate(todayInputValue());
       setInitialMethod("EFECTIVO");
-      setInitialPeriod(currentMonthInputValue());
       setInitialError(null);
     }
     onOpenChange(next);
@@ -183,22 +190,30 @@ export function EnrollmentForm({
         setInitialError("El monto del pago inicial debe ser mayor a cero");
         return;
       }
-      const [year, month] = initialPeriod.split("-").map(Number);
-      const lastDay = new Date(year, month, 0).getDate();
+      if (initialAmount > values.amount) {
+        setInitialError("El pago inicial no puede superar el monto de la inscripción");
+        return;
+      }
+      // El pago inicial cubre el período completo de la inscripción.
+      if (!computedEndDate) {
+        setInitialError("Indica una fecha de inicio válida para calcular el período");
+        return;
+      }
       initialPayment = {
         amount: initialAmount,
+        paymentDate: initialPaymentDate,
         method: initialMethod,
-        periodStart: `${initialPeriod}-01`,
-        periodEnd: `${initialPeriod}-${String(lastDay).padStart(2, "0")}`,
+        periodStart: values.startDate,
+        periodEnd: computedEndDate,
       };
     }
 
     try {
       const enrollment = await createEnrollment({
         childId,
+        type: values.type,
         startDate: values.startDate,
-        durationDays: values.durationDays,
-        monthlyFee: values.monthlyFee,
+        amount: values.amount,
         notes: values.notes.trim() || undefined,
         areaIds: areaIds.length ? areaIds : undefined,
         scheduleDays: scheduleDays.length ? scheduleDays : undefined,
@@ -218,8 +233,8 @@ export function EnrollmentForm({
         <DialogHeader>
           <DialogTitle>Nueva inscripción</DialogTitle>
           <DialogDescription>
-            Inscribe a {childName} indicando la duración, la agenda semanal, las áreas y,
-            si corresponde, el pago inicial.
+            Inscribe a {childName} indicando el tipo, el monto de la inscripción, la
+            agenda semanal, las áreas y, si corresponde, el pago inicial.
           </DialogDescription>
         </DialogHeader>
 
@@ -230,14 +245,38 @@ export function EnrollmentForm({
         )}
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Fecha de inscripción</Label>
-              <Input
-                id="startDate"
-                type="date"
-                {...register("startDate")}
-                aria-invalid={Boolean(errors.startDate)}
+              <Label htmlFor="type">Tipo de inscripción</Label>
+              <select
+                id="type"
+                className={inputClass}
+                {...register("type")}
+                aria-invalid={Boolean(errors.type)}
+              >
+                {ENROLLMENT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {ENROLLMENT_TYPE_LABELS[type]}
+                  </option>
+                ))}
+              </select>
+              {errors.type && (
+                <p className="text-sm text-error">{errors.type.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Fecha de inicio</Label>
+              <Controller
+                name="startDate"
+                control={control}
+                render={({ field }) => (
+                  <DateSelects
+                    value={field.value}
+                    onChange={field.onChange}
+                    invalid={Boolean(errors.startDate)}
+                  />
+                )}
               />
               {errors.startDate && (
                 <p className="text-sm text-error">{errors.startDate.message}</p>
@@ -245,54 +284,34 @@ export function EnrollmentForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="durationDays">Duración (días)</Label>
+              <Label>Duración (solo lectura)</Label>
               <Input
-                id="durationDays"
-                type="number"
-                min="1"
-                step="1"
-                {...register("durationDays", { valueAsNumber: true })}
-                aria-invalid={Boolean(errors.durationDays)}
+                readOnly
+                disabled
+                value={durationDays ? `${durationDays} días` : "—"}
               />
-              <div className="flex flex-wrap gap-1">
-                {DURATION_PRESETS.map((days) => (
-                  <Button
-                    key={days}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() =>
-                      setValue("durationDays", days, { shouldValidate: true })
-                    }
-                  >
-                    {days} días
-                  </Button>
-                ))}
-              </div>
-              {errors.durationDays && (
-                <p className="text-sm text-error">{errors.durationDays.message}</p>
-              )}
-              {computedEndDate && (
-                <p className="text-xs text-muted-foreground">
-                  Fecha de fin calculada: {computedEndDate}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Fecha de finalización:{" "}
+                {computedEndDate ? formatDate(computedEndDate) : "—"}
+              </p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="monthlyFee">Matrícula mensual</Label>
+            <Label htmlFor="amount">Monto de la inscripción</Label>
             <Input
-              id="monthlyFee"
+              id="amount"
               type="number"
               min="0.01"
               step="0.01"
-              {...register("monthlyFee", { valueAsNumber: true })}
-              aria-invalid={Boolean(errors.monthlyFee)}
+              {...register("amount", { valueAsNumber: true })}
+              aria-invalid={Boolean(errors.amount)}
             />
-            {errors.monthlyFee && (
-              <p className="text-sm text-error">{errors.monthlyFee.message}</p>
+            <p className="text-xs text-muted-foreground">
+              Monto para todo el período de la inscripción. No es una cuota mensual.
+            </p>
+            {errors.amount && (
+              <p className="text-sm text-error">{errors.amount.message}</p>
             )}
           </div>
 
@@ -367,7 +386,7 @@ export function EnrollmentForm({
                   setChargeInitial(event.target.checked);
                   setInitialError(null);
                   if (event.target.checked && initialAmount === 0) {
-                    setInitialAmount(getValues("monthlyFee") || 0);
+                    setInitialAmount(getValues("amount") || 0);
                   }
                 }}
               />
@@ -388,6 +407,13 @@ export function EnrollmentForm({
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="initialPaymentDate">Fecha de pago</Label>
+                  <DateSelects
+                    value={initialPaymentDate}
+                    onChange={setInitialPaymentDate}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="initialMethod">Método</Label>
                   <select
                     id="initialMethod"
@@ -404,14 +430,15 @@ export function EnrollmentForm({
                     ))}
                   </select>
                 </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="initialPeriod">Mes que cubre</Label>
-                  <Input
-                    id="initialPeriod"
-                    type="month"
-                    value={initialPeriod}
-                    onChange={(event) => setInitialPeriod(event.target.value)}
-                  />
+                <div className="space-y-2">
+                  <Label>Período correspondiente</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {startDateValue ? formatDate(startDateValue) : "—"} a{" "}
+                    {computedEndDate ? formatDate(computedEndDate) : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Cubre el período completo de la inscripción.
+                  </p>
                 </div>
               </div>
             )}

@@ -9,34 +9,30 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  Min,
   ValidateNested,
 } from 'class-validator';
-import { EnrollmentStatus } from '@prisma/client';
+import { EnrollmentStatus, EnrollmentType } from '@prisma/client';
 import { ScheduleDayDto } from './schedule-day.dto';
 
 export class UpdateEnrollmentDto {
+  @IsOptional()
+  @IsEnum(EnrollmentType, {
+    message: 'El tipo debe ser MENSUAL, TRIMESTRAL, SEMESTRAL o ANUAL',
+  })
+  type?: EnrollmentType;
+
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1, { message: 'La duración debe ser mayor a cero' })
-  durationDays?: number;
-
-  @IsOptional()
-  @IsDateString()
-  endDate?: string;
+  @IsNumber()
+  @IsPositive({ message: 'El monto de la inscripción debe ser mayor a cero' })
+  amount?: number;
 
   @IsOptional()
   @IsEnum(EnrollmentStatus)
   status?: EnrollmentStatus;
-
-  @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  monthlyFee?: number;
 
   @IsOptional()
   @IsArray()

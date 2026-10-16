@@ -44,6 +44,11 @@ export class EnrollmentsController {
     return this.enrollmentsService.getPrefill(childId);
   }
 
+  @Get('child/:childId/summary')
+  getSummary(@Param('childId', ParseIntPipe) childId: number) {
+    return this.enrollmentsService.getSummary(childId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.enrollmentsService.findOne(id);

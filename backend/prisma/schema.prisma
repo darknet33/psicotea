@@ -20,6 +20,13 @@ enum EnrollmentStatus {
   RETIRADO
 }
 
+enum EnrollmentType {
+  MENSUAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
 enum AttendanceStatus {
   PRESENTE
   AUSENTE
@@ -36,6 +43,35 @@ enum Shift {
   TODO_DIA
   MANANA
   TARDE
+}
+
+enum SpecialistShift {
+  MANANA
+  TARDE
+  AMBOS
+}
+
+enum AreaKind {
+  PRINCIPAL
+  SECUNDARIA
+}
+
+enum PlanFrequency {
+  DAILY
+  WEEKLY
+}
+
+enum ReportType {
+  EVALUACION
+  EVOLUTIVO
+  PERIODICO
+}
+
+enum ReportPeriod {
+  INICIO
+  MEDIADOS
+  FIN
+  NINGUNO
 }
 
 model User {
@@ -55,6 +91,7 @@ model User {
   activityRecords   Activity[]     @relation("ActivitySpecialist")
   reportRecords     Report[]       @relation("ReportSpecialist")
   expensesCreated   Expense[]
+  specialistPaymentsCreated SpecialistPayment[] @relation("SpecialistPaymentCreatedBy")
 }
 
 model RefreshToken {
@@ -86,6 +123,8 @@ model Child {
   reports        Report[]
   payments       Payment[]
   tutors         ChildTutor[]
+  treatmentPlans TreatmentPlan[]
+  evolutionNotes EvolutionNote[]
   specialistId   Int?
   specialist     Specialist?  @relation(fields: [specialistId], references: [id])
   createdAt      DateTime     @default(now())
@@ -127,15 +166,17 @@ model Enrollment {
   id           Int                     @id @default(autoincrement())
   childId      Int
   child        Child                   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  type         EnrollmentType?
   startDate    DateTime
   endDate      DateTime?
   durationDays Int?
   status       EnrollmentStatus        @default(ACTIVO)
-  monthlyFee   Decimal                 @db.Decimal(10, 2)
+  amount       Decimal                 @db.Decimal(10, 2)
   notes        String?
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
   payments     Payment[]
+  allocations  PaymentAllocation[]
   areas        EnrollmentArea[]
   scheduleDays EnrollmentScheduleDay[]
 
@@ -159,10 +200,14 @@ model Area {
   id          Int              @id @default(autoincrement())
   name        String           @unique
   description String?
+  kind        AreaKind         @default(SECUNDARIA)
+  order       Int              @default(0)
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   enrollments EnrollmentArea[]
+  specialists SpecialistArea[]
+  treatmentPlans TreatmentPlan[]
 }
 
 model EnrollmentArea {
@@ -191,9 +236,23 @@ model Payment {
   periodEnd    DateTime
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  allocations  PaymentAllocation[]
 
   @@index([childId])
   @@index([paymentDate])
+  @@index([enrollmentId])
+}
+
+model PaymentAllocation {
+  id           Int        @id @default(autoincrement())
+  paymentId    Int
+  payment      Payment    @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  enrollmentId Int
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  amount       Decimal    @db.Decimal(10, 2)
+  createdAt    DateTime   @default(now())
+
+  @@unique([paymentId, enrollmentId])
   @@index([enrollmentId])
 }
 
@@ -240,11 +299,16 @@ model Report {
   specialistId Int
   specialist   User     @relation("ReportSpecialist", fields: [specialistId], references: [id])
   title        String
-  content      String
+  content      String   @db.Text
+  type         ReportType   @default(EVOLUTIVO)
+  reportPeriod ReportPeriod @default(NINGUNO)
+  summary      String?  @db.Text
   periodStart  DateTime
   periodEnd    DateTime
   isDraft      Boolean  @default(true)
+  visibilityToParents Boolean @default(false)
   pdfUrl       String?
+  attachments  ReportAttachment[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -262,8 +326,15 @@ model Specialist {
   licenseNumber  String?
   phone          String?
   address        String?
+  entryDate      DateTime @default(now())
+  monthlySalary  Decimal? @db.Decimal(10, 2)
   isActive       Boolean  @default(true)
   children       Child[]
+  schedules      SpecialistSchedule[]
+  areas          SpecialistArea[]
+  payments       SpecialistPayment[]
+  treatmentPlans TreatmentPlan[]
+  evolutionNotes EvolutionNote[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -311,4 +382,119 @@ model Category {
   expenses    Expense[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model SpecialistSchedule {
+  id           Int              @id @default(autoincrement())
+  specialistId Int
+  specialist   Specialist       @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int
+  shift        SpecialistShift?
+  startTime    String?          @db.VarChar(5)
+  endTime      String?          @db.VarChar(5)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([specialistId, dayOfWeek])
+  @@index([dayOfWeek])
+}
+
+model SpecialistArea {
+  specialistId Int
+  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  areaId       Int
+  area         Area       @relation(fields: [areaId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@id([specialistId, areaId])
+  @@index([areaId])
+}
+
+model SpecialistPayment {
+  id           Int        @id @default(autoincrement())
+  specialistId Int
+  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  amount       Decimal    @db.Decimal(10, 2)
+  periodStart  DateTime   @db.Date
+  periodEnd    DateTime   @db.Date
+  paymentDate  DateTime   @db.Date
+  method       PaymentMethod
+  notes        String?
+  createdById  Int
+  createdBy    User       @relation("SpecialistPaymentCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([specialistId])
+  @@index([paymentDate])
+}
+
+model TreatmentPlan {
+  id           Int                @id @default(autoincrement())
+  childId      Int
+  child        Child              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  specialistId Int
+  specialist   Specialist         @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  areaId       Int?
+  area         Area?              @relation(fields: [areaId], references: [id])
+  frequency    PlanFrequency      @default(WEEKLY)
+  startDate    DateTime           @db.Date
+  endDate      DateTime?          @db.Date
+  notes        String?
+  isActive     Boolean            @default(true)
+  items        TreatmentPlanItem[]
+  evolutionNotes EvolutionNote[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([childId])
+  @@index([specialistId])
+}
+
+model TreatmentPlanItem {
+  id           Int             @id @default(autoincrement())
+  planId       Int
+  plan         TreatmentPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  dayOfWeek    Int?
+  order        Int             @default(0)
+  evolutionNotes EvolutionNote[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([planId])
+}
+
+model EvolutionNote {
+  id           Int              @id @default(autoincrement())
+  childId      Int
+  child        Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  specialistId Int
+  specialist   Specialist       @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  planId       Int?
+  plan         TreatmentPlan?   @relation(fields: [planId], references: [id])
+  planItemId   Int?
+  planItem     TreatmentPlanItem? @relation(fields: [planItemId], references: [id])
+  date         DateTime         @db.Date
+  content      String           @db.Text
+  observation  String?          @db.Text
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([childId])
+  @@index([specialistId])
+  @@index([date])
+}
+
+model ReportAttachment {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  name      String
+  fileUrl   String
+  mimeType  String?
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
 }

@@ -17,6 +17,7 @@ import {
   ENROLLMENT_STATUSES,
   SHIFT_LABELS,
   WEEKDAY_LABELS,
+  enrollmentTypeLabel,
   type Enrollment,
   type EnrollmentStatus,
 } from "@/types/enrollment";
@@ -120,6 +121,7 @@ export default function EnrollmentDetailPage() {
               <h2 className="text-2xl font-bold tracking-tight">
                 Inscripción #{enrollment.id}
               </h2>
+              {enrollment.vigente && <Badge variant="success">Vigente</Badge>}
               <StatusBadge status={enrollment.status} />
             </div>
             {enrollment.child && (
@@ -154,33 +156,33 @@ export default function EnrollmentDetailPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Facturado</CardTitle>
+            <CardTitle className="text-sm font-medium">Total de la inscripción</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {formatPrice(enrollment.facturado ?? 0)}
+              {formatPrice(enrollment.total)}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pagado</CardTitle>
+            <CardTitle className="text-sm font-medium">Total pagado</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatPrice(enrollment.pagado ?? 0)}</p>
+            <p className="text-2xl font-bold">{formatPrice(enrollment.pagado)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Saldo</CardTitle>
+            <CardTitle className="text-sm font-medium">Saldo pendiente</CardTitle>
           </CardHeader>
           <CardContent>
             <p
               className={`text-2xl font-bold ${
-                (enrollment.saldo ?? 0) > 0 ? "text-warning" : "text-success"
+                enrollment.saldo > 0 ? "text-warning" : "text-success"
               }`}
             >
-              {formatPrice(enrollment.saldo ?? 0)}
+              {formatPrice(enrollment.saldo)}
             </p>
           </CardContent>
         </Card>
@@ -192,6 +194,10 @@ export default function EnrollmentDetailPage() {
             <CardTitle className="text-base">Datos de la inscripción</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
+            <p>
+              <span className="text-muted-foreground">Tipo de inscripción:</span>{" "}
+              {enrollmentTypeLabel(enrollment.type)}
+            </p>
             <p>
               <span className="text-muted-foreground">Inicio:</span>{" "}
               {formatDate(enrollment.startDate)}
@@ -205,8 +211,8 @@ export default function EnrollmentDetailPage() {
               {enrollment.durationDays ? `${enrollment.durationDays} días` : "—"}
             </p>
             <p>
-              <span className="text-muted-foreground">Matrícula mensual:</span>{" "}
-              {formatPrice(enrollment.monthlyFee)}
+              <span className="text-muted-foreground">Monto de la inscripción:</span>{" "}
+              {formatPrice(enrollment.amount)}
             </p>
             {enrollment.notes && (
               <p>

@@ -3,6 +3,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -37,5 +38,20 @@ export class PublicController {
     }
 
     return this.publicService.getChildByCredential(code);
+  }
+
+  @Get('children/credential/:code/summary.pdf')
+  @Throttle({ default: PUBLIC_THROTTLE })
+  async downloadSummary(@Param('code') code: string): Promise<StreamableFile> {
+    if (!code) {
+      throw new NotFoundException('Credencial no válida.');
+    }
+
+    const { buffer, filename } = await this.publicService.buildSummaryPdf(code);
+
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${filename}"`,
+    });
   }
 }

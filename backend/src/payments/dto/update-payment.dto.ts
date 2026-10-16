@@ -1,4 +1,6 @@
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -6,8 +8,10 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
+import { PaymentAllocationDto } from './payment-allocation.dto';
 
 export class UpdatePaymentDto {
   @IsOptional()
@@ -19,6 +23,12 @@ export class UpdatePaymentDto {
   @IsInt()
   @IsPositive()
   enrollmentId?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PaymentAllocationDto)
+  allocations?: PaymentAllocationDto[];
 
   @IsOptional()
   @IsNumber()

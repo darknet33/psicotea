@@ -13,9 +13,19 @@ interface ChildSelectProps {
   onChange: (value: number) => void;
   error?: string;
   disabled?: boolean;
+  label?: string;
+  /** Permite la opción vacía para usarlo como filtro ("Todos"). */
+  allowEmpty?: boolean;
 }
 
-export function ChildSelect({ value, onChange, error, disabled }: ChildSelectProps) {
+export function ChildSelect({
+  value,
+  onChange,
+  error,
+  disabled,
+  label = "Niño",
+  allowEmpty = false,
+}: ChildSelectProps) {
   const [children, setChildren] = useState<Child[]>([]);
 
   useEffect(() => {
@@ -26,7 +36,7 @@ export function ChildSelect({ value, onChange, error, disabled }: ChildSelectPro
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="child-select">Niño</Label>
+      <Label htmlFor="child-select">{label}</Label>
       <select
         id="child-select"
         className={inputClass}
@@ -34,8 +44,8 @@ export function ChildSelect({ value, onChange, error, disabled }: ChildSelectPro
         onChange={(event) => onChange(Number(event.target.value))}
         disabled={disabled}
       >
-        <option value="" disabled>
-          Selecciona un niño...
+        <option value="" disabled={!allowEmpty}>
+          {allowEmpty ? "Todos los niños" : "Selecciona un niño..."}
         </option>
         {children.map((child) => (
           <option key={child.id} value={child.id}>

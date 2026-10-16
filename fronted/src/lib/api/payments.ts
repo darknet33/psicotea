@@ -2,7 +2,7 @@ import { api } from "@/lib/axios";
 import type {
   Payment,
   PaymentInput,
-  PendingPaymentPeriod,
+  PendingPayment,
   QueryPayments,
 } from "@/types/payment";
 
@@ -21,8 +21,8 @@ export async function listPaymentsByChild(childId: number): Promise<Payment[]> {
   return data;
 }
 
-export async function listPendingPayments(childId?: number): Promise<PendingPaymentPeriod[]> {
-  const { data } = await api.get<PendingPaymentPeriod[]>("/payments/pending", {
+export async function listPendingPayments(childId?: number): Promise<PendingPayment[]> {
+  const { data } = await api.get<PendingPayment[]>("/payments/pending", {
     params: childId !== undefined ? { childId } : {},
   });
   return data;

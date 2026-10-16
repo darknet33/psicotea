@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PublicService } from './public.service';
 import { CredentialResolverService } from '../common/credential/credential-resolver.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -52,6 +53,7 @@ const CHILD = {
   carnet: 'CI 10293847',
   dateOfBirth: new Date('2019-04-12'),
   photoUrl: 'https://cdn.example.com/martina.jpg',
+  diagnostico: 'Trastorno del espectro autista',
   tutors: [
     {
       relationship: 'Madre',
@@ -63,11 +65,49 @@ const CHILD = {
       },
     },
   ],
+  enrollments: [
+    {
+      id: 1,
+      type: 'MENSUAL',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-01-31'),
+      status: 'ACTIVO',
+      amount: new Prisma.Decimal(500),
+      allocations: [{ amount: new Prisma.Decimal(200) }],
+      areas: [{ area: { name: 'Lenguaje' } }],
+    },
+  ],
+  attendances: [
+    {
+      date: new Date('2026-01-05'),
+      status: 'PRESENTE',
+      notes: null,
+    },
+  ],
+  activities: [
+    {
+      date: new Date('2026-01-05'),
+      title: 'Vocales',
+      description: 'Trabajo de vocalización',
+    },
+  ],
   reports: [
     {
+      id: 1,
       title: 'Evaluación inicial',
+      content: 'Contenido clínico del informe',
+      summary: 'Resumen breve',
+      type: 'EVALUACION',
+      reportPeriod: 'INICIO',
       periodStart: new Date('2026-01-01'),
       periodEnd: new Date('2026-03-31'),
+      attachments: [
+        {
+          name: 'Evaluación.pdf',
+          fileUrl: '/uploads/evaluacion.pdf',
+          mimeType: 'application/pdf',
+        },
+      ],
     },
   ],
 };
@@ -90,43 +130,78 @@ describe('PublicService.getChildByCredential', () => {
     });
   });
 
-  it('devuelve la lista de informes con título y periodo', async () => {
+  it('expone el diagnóstico por decisión del dueño', async () => {
+    const { service } = createService({ child: CHILD });
+
+    const result = await service.getChildByCredential('abc.def');
+
+    expect(result.diagnostico).toBe('Trastorno del espectro autista');
+  });
+
+  it('devuelve los informes con su contenido y adjuntos', async () => {
     const { service } = createService({ child: CHILD });
 
     const result = await service.getChildByCredential('abc.def');
 
     expect(result.reports).toEqual([
       {
+        id: 1,
         title: 'Evaluación inicial',
+        type: 'EVALUACION',
+        reportPeriod: 'INICIO',
         periodStart: expect.any(String),
         periodEnd: expect.any(String),
+        content: 'Contenido clínico del informe',
+        summary: 'Resumen breve',
+        attachments: [
+          {
+            name: 'Evaluación.pdf',
+            fileUrl: '/uploads/evaluacion.pdf',
+            mimeType: 'application/pdf',
+          },
+        ],
       },
     ]);
   });
 
-  it('expone el carnet del niño para que el padre confirme la credencial', async () => {
+  it('calcula los totales de las inscripciones', async () => {
     const { service } = createService({ child: CHILD });
 
     const result = await service.getChildByCredential('abc.def');
 
-    expect(result.carnet).toBe('CI 10293847');
+    expect(result.enrollments).toEqual([
+      expect.objectContaining({
+        id: 1,
+        amount: 500,
+        totalPaid: 200,
+        balance: 300,
+        areas: ['Lenguaje'],
+      }),
+    ]);
   });
 
-  it('no expone diagnóstico, token ni contenido de informes', async () => {
+  it('devuelve asistencias y actividades', async () => {
+    const { service } = createService({ child: CHILD });
+
+    const result = await service.getChildByCredential('abc.def');
+
+    expect(result.attendances).toEqual([
+      { date: expect.any(String), status: 'PRESENTE', notes: null },
+    ]);
+    expect(result.activities).toEqual([
+      {
+        date: expect.any(String),
+        title: 'Vocales',
+        description: 'Trabajo de vocalización',
+      },
+    ]);
+  });
+
+  it('no expone el token ni datos de contacto del tutor', async () => {
     const { service } = createService({
       child: {
         ...CHILD,
-        // Aunque el mock devuelva campos que el `select` real excluye, la
-        // respuesta debe construirse solo con la lista blanca.
-        diagnostico: 'TDAH',
         credentialCode: 'abc.def',
-        reports: [
-          {
-            ...CHILD.reports[0],
-            content: 'contenido clínico confidencial',
-            pdfUrl: 'https://cdn.example.com/informe.pdf',
-          },
-        ],
         tutors: [
           {
             ...CHILD.tutors[0],
@@ -143,10 +218,7 @@ describe('PublicService.getChildByCredential', () => {
     const result = await service.getChildByCredential('abc.def');
     const serialized = JSON.stringify(result);
 
-    expect(serialized).not.toContain('TDAH');
     expect(serialized).not.toContain('abc.def');
-    expect(serialized).not.toContain('contenido clínico confidencial');
-    expect(serialized).not.toContain('informe.pdf');
     // El carnet del tutor sí se excluye: solo se expone el del niño, que ya
     // viene impreso en la credencial escaneada.
     expect(serialized).not.toContain('CI 45231876');
@@ -159,14 +231,6 @@ describe('PublicService.getChildByCredential', () => {
     const result = await service.getChildByCredential('abc.def');
 
     expect(result.primaryTutor).toBeNull();
-  });
-
-  it('devuelve una lista de informes vacía si no hay informes publicados', async () => {
-    const { service } = createService({ child: { ...CHILD, reports: [] } });
-
-    const result = await service.getChildByCredential('abc.def');
-
-    expect(result.reports).toEqual([]);
   });
 
   it('calcula la edad a partir de la fecha de nacimiento', async () => {
@@ -197,6 +261,17 @@ describe('PublicService.getChildByCredential', () => {
     await expect(service.getChildByCredential('abc.def')).rejects.toThrow(
       NotFoundException,
     );
+  });
+});
+
+describe('PublicService.buildSummaryPdf', () => {
+  it('genera un PDF resumido con encabezado válido', async () => {
+    const { service } = createService({ child: CHILD });
+
+    const { buffer, filename } = await service.buildSummaryPdf('abc.def');
+
+    expect(buffer.slice(0, 5).toString()).toBe('%PDF-');
+    expect(filename).toMatch(/^resumen-.*\.pdf$/);
   });
 });
 

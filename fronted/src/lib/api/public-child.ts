@@ -1,4 +1,4 @@
-import { publicApi } from "@/lib/axios";
+import { API_URL, publicApi } from "@/lib/axios";
 import type { PublicChildProfile } from "@/types/public-child";
 
 /**
@@ -40,4 +40,12 @@ export async function getPublicChild(code: string): Promise<PublicChildProfile> 
     }
     throw error;
   }
+}
+
+/**
+ * URL del resumen PDF del historial público. No requiere sesión, así que se
+ * puede usar directamente como `href` de un enlace de descarga.
+ */
+export function publicSummaryPdfUrl(code: string): string {
+  return `${API_URL}/public/children/credential/${encodeURIComponent(code)}/summary.pdf`;
 }

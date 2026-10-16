@@ -14,6 +14,13 @@ import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AreasModule } from './areas/areas.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { SpecialistsModule } from './specialists/specialists.module';
+import { PlanningModule } from './planning/planning.module';
+import { ReportsModule } from './reports/reports.module';
+import { ActivitiesModule } from './activities/activities.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { StaffModule } from './staff/staff.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -35,6 +42,13 @@ import { UploadsModule } from './uploads/uploads.module';
     PaymentsModule,
     AreasModule,
     UploadsModule,
+    SpecialistsModule,
+    PlanningModule,
+    ReportsModule,
+    ActivitiesModule,
+    ExpensesModule,
+    StaffModule,
+    RealtimeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

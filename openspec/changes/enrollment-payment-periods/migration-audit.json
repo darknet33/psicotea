@@ -1,0 +1,12 @@
+{
+  "enrollmentCount": 0,
+  "paymentCount": 0,
+  "distinctDurations": [],
+  "paymentMethods": [],
+  "enrollmentsWithNullOrZeroFee": 0,
+  "unrecognizedDurations": [],
+  "paymentsWithEnrollment": 0,
+  "paymentsWithoutEnrollment": 0,
+  "paymentsWithoutEnrollmentList": [],
+  "totalMonthlyFee": "0"
+}

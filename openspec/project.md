@@ -86,19 +86,19 @@ El sistema deberá permitir controlar el proceso de inscripción de cada niño.
 Cada inscripción deberá registrar como mínimo:
 
 * Niño.
-* Fecha de inscripción.
-* Duración en días; el sistema calcula la fecha de finalización a partir de la fecha de inscripción y la duración.
+* Fecha de inicio.
+* Tipo de inscripción (Mensual, Trimestral, Semestral o Anual). El sistema deriva la duración en días (30, 90, 180 o 360) y la fecha de finalización a partir de la fecha de inicio; el usuario nunca ingresa días.
 * Fecha de finalización calculada.
 * Estado.
-* Matrícula mensual.
+* Monto de la inscripción: monto por período, único para toda la inscripción, editable y mayor a cero. Una inscripción trimestral de Bs 2.400 es una obligación de Bs 2.400; no se multiplica por los meses ni se subdivide en cuotas.
 * Agenda semanal: días de la semana y turno (todo el día, mañana o tarde), con un máximo de un turno por día.
 * Áreas de trabajo (catálogo administrable; una inscripción puede tener varias).
 * Observaciones.
-* Pago inicial opcional (monto, método y período), registrado junto con la inscripción.
+* Pago inicial opcional (monto, método, período y fecha de pago real), registrado junto con la inscripción y sin superar el saldo de la inscripción.
 
-Cada niño puede tener como máximo una inscripción activa a la vez. Para inscribirlo de nuevo primero debe retirarse o desactivarse la inscripción vigente; al dejar de estar activa, si no se indica una fecha de fin, el sistema la fija en el día actual.
+Una inscripción está **vigente** cuando su estado es Activo y la fecha actual cae dentro de su rango `[fecha de inicio, fecha de finalización]`. Las inscripciones de un mismo niño no pueden **solaparse** en el tiempo, sin importar su estado; se rechazan los rangos que chocan.
 
-Al reinscribir a un niño, el sistema ofrece como valores sugeridos el monto, las áreas y la agenda de su inscripción anterior, con la fecha de inscripción propuesta igual a la fecha de finalización anterior. El usuario puede modificar esos valores y la inscripción anterior no se cierra automáticamente.
+Al reinscribir a un niño, el sistema ofrece como valores sugeridos el tipo, el monto, las áreas y la agenda de su inscripción anterior, con la fecha de inicio propuesta igual al día siguiente de la fecha de finalización anterior. Todos los valores son editables y la inscripción anterior no se cierra ni se modifica automáticamente.
 
 El sistema deberá conservar el historial de las inscripciones cuando un niño vuelva a ingresar después de haber sido retirado.
 
@@ -106,9 +106,11 @@ El sistema deberá conservar el historial de las inscripciones cuando un niño v
 
 Para cada inscripción el sistema muestra, calculado al vuelo:
 
-* Facturado: matrícula mensual por los meses calendario comprendidos entre la fecha de inicio y la fecha de finalización (o el día actual si sigue activa).
-* Pagado: suma de los pagos asociados.
-* Saldo: facturado menos pagado.
+* Total: el monto de la inscripción.
+* Total pagado: suma de los pagos aplicados a esa inscripción (asignaciones o allocations).
+* Saldo pendiente: total menos total pagado.
+
+Si un pago supera la deuda total del niño, el excedente se aplica a la inscripción más reciente como saldo a favor.
 
 El listado de inscripciones se presenta agrupado por niño, con los totales del grupo y sin crear inscripciones desde ahí; el alta se realiza desde el expediente del niño.
 
@@ -130,12 +132,16 @@ Podrá registrar:
 
 * Niño.
 * Concepto.
-* Periodo.
-* Fecha de pago.
+* Período cubierto (inicio y fin, independientes de la fecha de pago).
+* Fecha de pago (cuándo entró el dinero; no se sincroniza con el período).
 * Monto.
 * Método de pago.
 * Estado.
 * Observaciones.
+
+La **fecha de pago** y el **período cubierto** son independientes: un pago recibido en noviembre puede aplicarse a una deuda de octubre. El sistema no fuerza el período al mes actual ni completa el fin de período con el inicio.
+
+Un pago se aplica a una o varias inscripciones del niño mediante **asignaciones (allocations)**. Por defecto el sistema lo reparte de la deuda más antigua a la más reciente; el usuario puede revisar y editar la distribución antes de confirmar. La suma de las asignaciones es siempre exactamente igual al monto del pago. Si el pago supera la deuda total, el excedente queda como saldo a favor de la inscripción más reciente.
 
 ### Métodos de pago
 
@@ -159,7 +165,7 @@ El sistema deberá permitir:
 * Consultar pagos por niño.
 * Generar reportes.
 
-El sistema deberá permitir identificar los pagos correspondientes a cada periodo de inscripción.
+El sistema deberá permitir identificar los pagos correspondientes a cada período e inscripción, conservando el movimiento original y la trazabilidad de cómo se aplicó a cada obligación.
 
 El diseño deberá permitir incorporar posteriormente conceptos adicionales de cobro.
 
@@ -456,6 +462,8 @@ El sistema podrá mostrar:
 * Pagos pendientes.
 * Gastos por categoría.
 
+Los **pagos pendientes** se calculan desde los saldos reales de cada inscripción (monto de la inscripción menos pagos aplicados), nunca multiplicando un monto por meses. Se distinguen las **deudas anteriores** (inscripciones no vigentes con saldo pendiente) de la deuda de la **inscripción vigente**. Una deuda anterior persiste al reinscribir a un niño: no se cierra, no se borra ni se compensa automáticamente.
+
 > Este módulo no constituye inicialmente un sistema contable completo. Su objetivo es proporcionar control administrativo básico sobre los ingresos provenientes de pagos y los gastos registrados.
 
 ---
@@ -719,6 +727,8 @@ La landing page deberá contar con llamadas a la acción para facilitar el conta
 
 La landing page no deberá exponer información privada de los niños, especialistas, usuarios o registros internos.
 
+El acceso a la información de un niño no forma parte de la landing page: se realiza a través del portal público de credenciales (ver §21), que se mantiene separado de la landing y de la plataforma privada.
+
 ---
 
 # 20. Diseño responsive
@@ -754,9 +764,14 @@ Como mínimo:
 * Protección de documentos.
 * Acceso únicamente para usuarios autorizados.
 
-La información de los niños no deberá estar disponible públicamente.
+La información de los niños no deberá exponerse en la landing page pública.
+
+El acceso a los datos de un niño por parte de sus padres o tutores se realiza exclusivamente a través de la **credencial del niño** (código o QR), que actúa como llave de acceso y no requiere una cuenta en la plataforma. Por decisión del centro, aceptada de forma explícita, la credencial da acceso al historial autorizado del niño (inscripciones con saldos, asistencias, actividades, informes visibles y diagnóstico), por lo que la credencial debe tratarse como información sensible y no compartirse fuera del círculo autorizado.
 
 La landing page deberá mantenerse separada de la información privada del sistema.
+
+El portal público SHALL limitar la tasa de peticiones y SHALL exponer únicamente información de niños con `isActive` en true e informes con `isDraft` en false y `visibilityToParents` en true.
+
 
 ---
 
@@ -1039,8 +1054,8 @@ El sistema deberá quedar preparado para incorporar posteriormente:
 
 ### Portal para padres
 
-* Link público donde el padre, madre o tutor consulta el historial y datos de sus niños validándose con su carnet (documento de identidad).
-* El portal expondrá únicamente información autorizada y no requerirá credenciales de la plataforma.
+* Link público donde el padre, madre o tutor consulta el historial y datos de sus niños validándose con la credencial del niño (código/QR). Implementado.
+* El portal expone el historial completo del niño (inscripciones con saldos, asistencias, actividades, informes visibles, diagnóstico y un PDF resumido) porque el dueño aceptó ese nivel de apertura; no requiere credenciales de la plataforma.
 * No constituye un registro de usuarios: los padres no inician sesión en el sistema.
 
 Estas funcionalidades deberán analizarse y especificarse antes de su implementación.

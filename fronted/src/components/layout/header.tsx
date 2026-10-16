@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { MobileNav } from "./sidebar";
 import { UserMenu } from "./user-menu";
+import { NotificationCenter } from "./notification-center";
 
 export function Header({
   title,
@@ -39,9 +40,7 @@ export function Header({
       <h1 className="text-lg font-semibold">{title ?? "Dashboard"}</h1>
 
       <div className="ml-auto flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="Notificaciones">
-          <Bell className="size-5" />
-        </Button>
+        <NotificationCenter />
         <UserMenu />
       </div>
     </header>

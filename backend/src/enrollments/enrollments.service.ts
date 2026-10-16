@@ -2,14 +2,29 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
-import { EnrollmentStatus, Prisma } from '@prisma/client';
+import { EnrollmentStatus, EnrollmentType, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { ROOM_BY_ROLE } from '../realtime/realtime.constants';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { QueryEnrollmentsDto } from './dto/query-enrollments.dto';
+import { fromCents, toCents } from '../common/money';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Duración en días corridos por tipo de inscripción. El usuario elige el
+ * tipo; el backend deriva la duración y la fecha de finalización.
+ */
+export const ENROLLMENT_DURATIONS: Record<EnrollmentType, number> = {
+  MENSUAL: 30,
+  TRIMESTRAL: 90,
+  SEMESTRAL: 180,
+  ANUAL: 360,
+};
 
 const LIST_INCLUDE = {
   child: {
@@ -23,21 +38,11 @@ const LIST_INCLUDE = {
   },
   scheduleDays: { orderBy: { dayOfWeek: 'asc' as const } },
   areas: { include: { area: true } },
-  payments: { select: { amount: true } },
+  allocations: { select: { amount: true } },
 } satisfies Prisma.EnrollmentInclude;
 
 const DETAIL_INCLUDE = {
-  child: {
-    select: {
-      id: true,
-      name: true,
-      lastName: true,
-      photoUrl: true,
-      isActive: true,
-    },
-  },
-  scheduleDays: { orderBy: { dayOfWeek: 'asc' as const } },
-  areas: { include: { area: true } },
+  ...LIST_INCLUDE,
   payments: { orderBy: { paymentDate: 'desc' as const } },
 } satisfies Prisma.EnrollmentInclude;
 
@@ -50,7 +55,7 @@ type EnrollmentWithDetail = Prisma.EnrollmentGetPayload<{
 }>;
 
 export interface Totals {
-  facturado: number;
+  total: number;
   pagado: number;
   saldo: number;
 }
@@ -71,42 +76,70 @@ export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);
 }
 
-/**
- * Cuenta cuántos meses calendario se solapan con `[startDate, endDate]`,
- * ambos inclusive. Si no hay `endDate`, se cuenta hasta hoy.
- */
-export function countBilledMonths(
-  startDate: Date,
-  endDate: Date | null,
-  now: Date = new Date(),
-): number {
-  const end = endDate ?? now;
-  const months =
-    (end.getFullYear() - startDate.getFullYear()) * 12 +
-    (end.getMonth() - startDate.getMonth()) +
-    1;
-  return Math.max(1, months);
+export function durationForType(type: EnrollmentType): number {
+  const duration = ENROLLMENT_DURATIONS[type];
+  if (!duration) {
+    throw new BadRequestException(`Tipo de inscripción inválido: ${type}`);
+  }
+  return duration;
 }
 
-function computeTotals(enrollment: {
-  monthlyFee: Prisma.Decimal;
-  startDate: Date;
-  endDate: Date | null;
-  payments: Array<{ amount: Prisma.Decimal }>;
+export function computeEndDate(startDate: Date, type: EnrollmentType): Date {
+  return addDays(startDate, durationForType(type));
+}
+
+function utcDay(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+/**
+ * Una inscripción está vigente cuando su estado es `ACTIVO` y la fecha de hoy
+ * cae dentro de `[startDate, endDate]`, ambas inclusive. La comparación se
+ * hace por día calendario para no depender de la hora.
+ */
+export function isVigente(
+  enrollment: {
+    status: EnrollmentStatus;
+    startDate: Date;
+    endDate: Date | null;
+  },
+  now: Date = new Date(),
+): boolean {
+  if (enrollment.status !== EnrollmentStatus.ACTIVO) return false;
+  if (!enrollment.endDate) return false;
+  const today = utcDay(now);
+  return (
+    utcDay(enrollment.startDate) <= today && today <= utcDay(enrollment.endDate)
+  );
+}
+
+/**
+ * El total de una inscripción es su `amount` (monto del período completo).
+ * El pagado es la suma de las allocations aplicadas a esa inscripción. El
+ * saldo NO se multiplica por meses.
+ */
+export function computeTotals(enrollment: {
+  amount: Prisma.Decimal;
+  allocations: Array<{ amount: Prisma.Decimal }>;
 }): Totals {
-  const facturado =
-    Number(enrollment.monthlyFee) *
-    countBilledMonths(enrollment.startDate, enrollment.endDate);
-  const pagado = enrollment.payments.reduce(
-    (sum, payment) => sum + Number(payment.amount),
+  const total = toCents(enrollment.amount);
+  const pagado = enrollment.allocations.reduce(
+    (sum, allocation) => sum + toCents(allocation.amount),
     0,
   );
-  return { facturado, pagado, saldo: facturado - pagado };
+  return {
+    total: fromCents(total),
+    pagado: fromCents(pagado),
+    saldo: fromCents(total - pagado),
+  };
 }
 
 @Injectable()
 export class EnrollmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly realtime?: RealtimeService,
+  ) {}
 
   async findAll(query: QueryEnrollmentsDto) {
     const where: Prisma.EnrollmentWhereInput = {};
@@ -150,7 +183,7 @@ export class EnrollmentsService {
 
       if (existing) {
         existing.enrollments.push(enrollment);
-        existing.totals.facturado += totals.facturado;
+        existing.totals.total += totals.total;
         existing.totals.pagado += totals.pagado;
         existing.totals.saldo += totals.saldo;
       } else {
@@ -206,9 +239,51 @@ export class EnrollmentsService {
   }
 
   /**
+   * Resumen económico de un niño: sus inscripciones con totales, la vigente
+   * identificada y las deudas anteriores separadas. Es la fuente que usa el
+   * expediente para no duplicar la lógica de saldo en el cliente.
+   */
+  async getSummary(childId: number) {
+    const child = await this.prisma.child.findUnique({
+      where: { id: childId },
+      select: { id: true },
+    });
+
+    if (!child) {
+      throw new NotFoundException('Niño no encontrado');
+    }
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { childId },
+      include: LIST_INCLUDE,
+      orderBy: { startDate: 'asc' },
+    });
+
+    const items = enrollments.map((enrollment) => this.toListItem(enrollment));
+    const now = new Date();
+
+    const active = items.find((item) => item.vigente) ?? null;
+
+    const previousDebts = items.filter(
+      (item) =>
+        !item.vigente &&
+        item.saldo > 0 &&
+        item.startDate.getTime() <= now.getTime(),
+    );
+
+    return {
+      childId,
+      active,
+      previousDebts,
+      enrollments: items,
+    };
+  }
+
+  /**
    * Sugerencias para reinscribir: la inscripción más reciente de un niño, con
-   * su monto, sus áreas y su agenda. La fecha sugerida es su `endDate`, para
-   * que la nueva inscripción continúe desde donde terminó la anterior.
+   * su tipo, monto, áreas y agenda. La fecha sugerida es el día siguiente al
+   * `endDate` anterior para no solapar. Son sugerencias editables y no
+   * modifican la inscripción anterior.
    */
   async getPrefill(childId: number) {
     const previous = await this.prisma.enrollment.findFirst({
@@ -224,12 +299,13 @@ export class EnrollmentsService {
       throw new NotFoundException('El niño no tiene inscripciones previas');
     }
 
+    const baseDate = previous.endDate ?? previous.startDate;
+
     return {
       enrollmentId: previous.id,
-      monthlyFee: Number(previous.monthlyFee),
-      startDate: (previous.endDate ?? previous.startDate)
-        .toISOString()
-        .slice(0, 10),
+      type: previous.type,
+      amount: Number(previous.amount),
+      startDate: addDays(baseDate, 1).toISOString().slice(0, 10),
       areaIds: previous.areas.map((area) => area.areaId),
       scheduleDays: previous.scheduleDays.map((day) => ({
         dayOfWeek: day.dayOfWeek,
@@ -251,31 +327,36 @@ export class EnrollmentsService {
     this.assertScheduleUnique(dto.scheduleDays);
 
     const startDate = parseDateOnly(dto.startDate);
-    const endDate = addDays(startDate, dto.durationDays);
+    const durationDays = durationForType(dto.type);
+    const endDate = computeEndDate(startDate, dto.type);
     const status = dto.status ?? EnrollmentStatus.ACTIVO;
 
     this.assertDateOrder(startDate, endDate);
 
-    if (status === EnrollmentStatus.ACTIVO) {
-      await this.assertNoActiveEnrollment(dto.childId);
-    }
-
     if (dto.initialPayment) {
-      this.assertPayment(
-        dto.initialPayment.periodStart,
-        dto.initialPayment.periodEnd,
-      );
+      const periodStart = parseDateOnly(dto.initialPayment.periodStart);
+      const periodEnd = parseDateOnly(dto.initialPayment.periodEnd);
+      this.assertPeriodOrder(periodStart, periodEnd);
+
+      if (toCents(dto.initialPayment.amount) > toCents(dto.amount)) {
+        throw new BadRequestException(
+          'El pago inicial no puede superar el monto de la inscripción',
+        );
+      }
     }
 
     const created = await this.prisma.$transaction(async (tx) => {
+      await this.assertNoOverlap(tx, dto.childId, startDate, endDate);
+
       const enrollment = await tx.enrollment.create({
         data: {
           childId: dto.childId,
+          type: dto.type,
           startDate,
           endDate,
-          durationDays: dto.durationDays,
+          durationDays,
           status,
-          monthlyFee: dto.monthlyFee,
+          amount: dto.amount,
           notes: dto.notes,
           ...(dto.scheduleDays?.length && {
             scheduleDays: {
@@ -299,12 +380,20 @@ export class EnrollmentsService {
             childId: dto.childId,
             enrollmentId: enrollment.id,
             amount: dto.initialPayment.amount,
-            paymentDate: new Date(),
+            paymentDate: parseDateOnly(dto.initialPayment.paymentDate),
             method: dto.initialPayment.method,
             periodStart: parseDateOnly(dto.initialPayment.periodStart),
             periodEnd: parseDateOnly(dto.initialPayment.periodEnd),
             reference: dto.initialPayment.reference,
             description: dto.initialPayment.description,
+            allocations: {
+              create: [
+                {
+                  enrollmentId: enrollment.id,
+                  amount: dto.initialPayment.amount,
+                },
+              ],
+            },
           },
         });
       }
@@ -312,7 +401,15 @@ export class EnrollmentsService {
       return enrollment;
     });
 
-    return this.getById(created.id);
+    const enrollment = await this.getById(created.id);
+
+    this.realtime?.emitToRooms(
+      [ROOM_BY_ROLE[Role.ADMIN], ROOM_BY_ROLE[Role.PERSONAL_ADMINISTRATIVO]],
+      'enrollment:update',
+      { childId: dto.childId, enrollment },
+    );
+
+    return enrollment;
   }
 
   async update(id: number, dto: UpdateEnrollmentDto) {
@@ -330,45 +427,47 @@ export class EnrollmentsService {
         ? parseDateOnly(dto.startDate)
         : current.startDate;
 
+    const type = dto.type !== undefined ? dto.type : current.type;
+    const datesTouched = dto.type !== undefined || dto.startDate !== undefined;
+
+    let durationDays = current.durationDays;
     let endDate = current.endDate;
-    if (dto.durationDays !== undefined) {
-      endDate = addDays(startDate, dto.durationDays);
-    } else if (dto.endDate !== undefined) {
-      endDate = dto.endDate ? parseDateOnly(dto.endDate) : null;
-    } else if (dto.startDate !== undefined && current.durationDays != null) {
-      endDate = addDays(startDate, current.durationDays);
+
+    if (datesTouched) {
+      if (type) {
+        durationDays = durationForType(type);
+        endDate = computeEndDate(startDate, type);
+      } else if (dto.startDate !== undefined && current.durationDays != null) {
+        // Inscripción heredada sin tipo: se conserva su duración conocida.
+        durationDays = current.durationDays;
+        endDate = addDays(startDate, current.durationDays);
+      }
     }
 
     const status = dto.status ?? current.status;
     const leavesActive =
       dto.status !== undefined && dto.status !== EnrollmentStatus.ACTIVO;
 
-    if (
-      leavesActive &&
-      dto.endDate === undefined &&
-      dto.durationDays === undefined
-    ) {
+    if (leavesActive && !datesTouched) {
       endDate = new Date();
     }
 
     this.assertDateOrder(startDate, endDate);
 
-    if (
-      status === EnrollmentStatus.ACTIVO &&
-      current.status !== EnrollmentStatus.ACTIVO
-    ) {
-      await this.assertNoActiveEnrollment(current.childId, id);
-    }
-
     await this.prisma.$transaction(async (tx) => {
+      if (datesTouched) {
+        await this.assertNoOverlap(tx, current.childId, startDate, endDate, id);
+      }
+
       await tx.enrollment.update({
         where: { id },
         data: {
           startDate,
           endDate,
-          durationDays: dto.durationDays ?? current.durationDays,
+          ...(type !== current.type && { type }),
+          durationDays,
           status,
-          ...(dto.monthlyFee !== undefined && { monthlyFee: dto.monthlyFee }),
+          ...(dto.amount !== undefined && { amount: dto.amount }),
           ...(dto.notes !== undefined && { notes: dto.notes }),
         },
       });
@@ -415,21 +514,25 @@ export class EnrollmentsService {
   }
 
   private toListItem(enrollment: EnrollmentWithList) {
-    const { payments, areas, ...rest } = enrollment;
+    const { allocations, areas, ...rest } = enrollment;
+    void allocations;
     return {
       ...rest,
       areas: areas.map((link) => link.area),
-      ...computeTotals({ ...enrollment, payments }),
+      ...computeTotals(enrollment),
+      vigente: isVigente(enrollment),
     };
   }
 
   private toDetail(enrollment: EnrollmentWithDetail) {
-    const { payments, areas, ...rest } = enrollment;
+    const { allocations, areas, payments, ...rest } = enrollment;
+    void allocations;
     return {
       ...rest,
       areas: areas.map((link) => link.area),
       payments,
       ...computeTotals(enrollment),
+      vigente: isVigente(enrollment),
     };
   }
 
@@ -438,6 +541,12 @@ export class EnrollmentsService {
       throw new BadRequestException(
         'La fecha de inicio no puede ser posterior a la de fin',
       );
+    }
+  }
+
+  private assertPeriodOrder(periodStart: Date, periodEnd: Date) {
+    if (periodStart > periodEnd) {
+      throw new BadRequestException('El período del pago no es válido');
     }
   }
 
@@ -455,12 +564,6 @@ export class EnrollmentsService {
     }
   }
 
-  private assertPayment(periodStart: string, periodEnd: string) {
-    if (parseDateOnly(periodStart) > parseDateOnly(periodEnd)) {
-      throw new BadRequestException('El período del pago inicial no es válido');
-    }
-  }
-
   private async assertAreasExist(areaIds?: number[]) {
     if (!areaIds?.length) return;
 
@@ -474,19 +577,31 @@ export class EnrollmentsService {
     }
   }
 
-  private async assertNoActiveEnrollment(childId: number, excludeId?: number) {
-    const active = await this.prisma.enrollment.findFirst({
+  /**
+   * No se permite crear ni editar una inscripción cuyas fechas se solapen con
+   * otra del mismo niño, sin importar el estado. Dos rangos se solapan cuando
+   * `a.start <= b.end && b.start <= a.end`.
+   */
+  private async assertNoOverlap(
+    client: Prisma.TransactionClient,
+    childId: number,
+    startDate: Date,
+    endDate: Date | null,
+    excludeId?: number,
+  ) {
+    const overlapping = await client.enrollment.findFirst({
       where: {
         childId,
-        status: EnrollmentStatus.ACTIVO,
         ...(excludeId !== undefined && { id: { not: excludeId } }),
+        startDate: { lte: endDate ?? undefined },
+        OR: [{ endDate: { gte: startDate } }, { endDate: null }],
       },
       select: { id: true },
     });
 
-    if (active) {
+    if (overlapping) {
       throw new BadRequestException(
-        'El niño ya tiene una inscripción activa. Retírala o desactívala antes de crear otra.',
+        'Las fechas de la inscripción se solapan con otra inscripción del niño',
       );
     }
   }

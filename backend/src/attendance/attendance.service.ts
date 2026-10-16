@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Attendance, AttendanceStatus, Role } from '@prisma/client';
 import { ChildrenService } from '../children/children.service';
@@ -11,6 +12,8 @@ import {
 } from '../common/credential/credential-resolver.service';
 import { RequestUser } from '../common/interfaces/authenticated-request.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { ROOM_BY_ROLE } from '../realtime/realtime.constants';
 import { ScanAttendanceDto } from './dto/scan-attendance.dto';
 
 export interface ScanAttendanceResult {
@@ -26,6 +29,7 @@ export class AttendanceService {
     private readonly prisma: PrismaService,
     private readonly resolver: CredentialResolverService,
     private readonly childrenService: ChildrenService,
+    @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   /**
@@ -73,6 +77,12 @@ export class AttendanceService {
     if (!child) {
       throw new NotFoundException('Niño no encontrado');
     }
+
+    this.realtime?.emitToRooms(
+      [ROOM_BY_ROLE[Role.ADMIN], ROOM_BY_ROLE[Role.PERSONAL_ADMINISTRATIVO]],
+      'attendance:update',
+      { childId, date: attendance.date, status: attendance.status },
+    );
 
     return { attendance, created: existing === null, child };
   }

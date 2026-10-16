@@ -1,10 +1,17 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { EnrollmentStatus, Prisma, Shift } from '@prisma/client';
+import {
+  EnrollmentStatus,
+  EnrollmentType,
+  Prisma,
+  Shift,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   addDays,
-  countBilledMonths,
+  computeEndDate,
+  durationForType,
   EnrollmentsService,
+  isVigente,
   parseDateOnly,
 } from './enrollments.service';
 
@@ -39,11 +46,12 @@ function enrollmentRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 1,
     childId: 1,
+    type: EnrollmentType.TRIMESTRAL,
     startDate: new Date('2026-01-15T12:00:00.000Z'),
     endDate: new Date('2026-04-15T12:00:00.000Z'),
     durationDays: 90,
     status: EnrollmentStatus.ACTIVO,
-    monthlyFee: new Prisma.Decimal(1000),
+    amount: new Prisma.Decimal(2400),
     notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -56,12 +64,13 @@ function enrollmentRow(overrides: Record<string, unknown> = {}) {
     },
     scheduleDays: [],
     areas: [],
+    allocations: [],
     payments: [],
     ...overrides,
   };
 }
 
-describe('helpers de fecha', () => {
+describe('helpers de fecha y tipo', () => {
   it('parseDateOnly interpreta YYYY-MM-DD a mediodía UTC', () => {
     expect(parseDateOnly('2026-10-03').toISOString()).toBe(
       '2026-10-03T12:00:00.000Z',
@@ -73,40 +82,124 @@ describe('helpers de fecha', () => {
       '2026-04-15T12:00:00.000Z',
     );
   });
+
+  it.each<[EnrollmentType, number]>([
+    [EnrollmentType.MENSUAL, 30],
+    [EnrollmentType.TRIMESTRAL, 90],
+    [EnrollmentType.SEMESTRAL, 180],
+    [EnrollmentType.ANUAL, 360],
+  ])('durationForType(%s) = %i', (type, days) => {
+    expect(durationForType(type)).toBe(days);
+  });
+
+  it('computeEndDate deriva la fecha de fin del tipo', () => {
+    expect(
+      computeEndDate(
+        parseDateOnly('2026-01-15'),
+        EnrollmentType.MENSUAL,
+      ).toISOString(),
+    ).toBe('2026-02-14T12:00:00.000Z');
+  });
 });
 
-describe('countBilledMonths', () => {
-  it('cuenta meses completos inclusive', () => {
-    expect(
-      countBilledMonths(
-        new Date('2026-01-01T12:00:00Z'),
-        new Date('2026-03-31T12:00:00Z'),
-      ),
-    ).toBe(3);
+describe('isVigente', () => {
+  const base = {
+    status: EnrollmentStatus.ACTIVO,
+    startDate: new Date('2026-01-15T12:00:00.000Z'),
+    endDate: new Date('2026-04-15T12:00:00.000Z'),
+  };
+
+  it('vigente dentro del rango (inclusive)', () => {
+    expect(isVigente(base, new Date('2026-02-20T12:00:00.000Z'))).toBe(true);
+    expect(isVigente(base, base.startDate)).toBe(true);
+    expect(isVigente(base, base.endDate)).toBe(true);
   });
 
-  it('un rango dentro del mismo mes cuenta como uno', () => {
-    expect(
-      countBilledMonths(
-        new Date('2026-01-15T12:00:00Z'),
-        new Date('2026-01-20T12:00:00Z'),
-      ),
-    ).toBe(1);
+  it('no vigente después del endDate', () => {
+    expect(isVigente(base, new Date('2026-04-16T12:00:00.000Z'))).toBe(false);
   });
 
-  it('sin endDate cuenta hasta hoy', () => {
+  it('no vigente antes del startDate', () => {
+    expect(isVigente(base, new Date('2026-01-01T12:00:00.000Z'))).toBe(false);
+  });
+
+  it('no vigente si el estado no es ACTIVO', () => {
     expect(
-      countBilledMonths(
-        new Date('2026-01-15T12:00:00Z'),
-        null,
-        new Date('2026-03-10T12:00:00Z'),
+      isVigente(
+        { ...base, status: EnrollmentStatus.RETIRADO },
+        new Date('2026-02-20T12:00:00.000Z'),
       ),
-    ).toBe(3);
+    ).toBe(false);
   });
 });
 
 describe('EnrollmentsService', () => {
   describe('create', () => {
+    it('crea trimestral con monto personalizado sin multiplicar por meses', async () => {
+      const prisma = makePrisma();
+      prisma.child.findUnique.mockResolvedValue({ id: 1 });
+      prisma.enrollment.findFirst.mockResolvedValue(null);
+      prisma.enrollment.create.mockResolvedValue({ id: 10 });
+      prisma.enrollment.findUnique.mockResolvedValue(
+        enrollmentRow({
+          id: 10,
+          type: EnrollmentType.TRIMESTRAL,
+          amount: new Prisma.Decimal(2400),
+          allocations: [],
+        }),
+      );
+
+      const service = serviceWith(prisma);
+      const result = await service.create({
+        childId: 1,
+        type: EnrollmentType.TRIMESTRAL,
+        startDate: '2026-01-15',
+        amount: 2400,
+      });
+
+      expect(prisma.enrollment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: EnrollmentType.TRIMESTRAL,
+            amount: 2400,
+            durationDays: 90,
+            endDate: expect.any(Date),
+          }),
+        }),
+      );
+      expect(result).toMatchObject({ total: 2400, pagado: 0, saldo: 2400 });
+    });
+
+    it('deriva la duración del tipo ignorando cualquier día del cliente', async () => {
+      const prisma = makePrisma();
+      prisma.child.findUnique.mockResolvedValue({ id: 1 });
+      prisma.enrollment.findFirst.mockResolvedValue(null);
+      prisma.enrollment.create.mockResolvedValue({ id: 11 });
+      prisma.enrollment.findUnique.mockResolvedValue(
+        enrollmentRow({
+          id: 11,
+          type: EnrollmentType.MENSUAL,
+          durationDays: 30,
+        }),
+      );
+
+      const service = serviceWith(prisma);
+      await service.create({
+        childId: 1,
+        type: EnrollmentType.MENSUAL,
+        startDate: '2026-01-15',
+        amount: 750,
+        // @ts-expect-error el cliente no debería enviar días
+        durationDays: 999,
+      });
+
+      expect(prisma.enrollment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ durationDays: 30 }),
+        }),
+      );
+    });
+
     it('crea la inscripción con agenda, áreas y pago inicial en transacción', async () => {
       const prisma = makePrisma();
       prisma.child.findUnique.mockResolvedValue({ id: 1 });
@@ -115,40 +208,102 @@ describe('EnrollmentsService', () => {
       prisma.enrollment.create.mockResolvedValue({ id: 10 });
       prisma.payment.create.mockResolvedValue({ id: 1 });
       prisma.enrollment.findUnique.mockResolvedValue(
-        enrollmentRow({ id: 10, payments: [] }),
+        enrollmentRow({ id: 10, allocations: [] }),
+      );
+
+      const service = serviceWith(prisma);
+      await service.create({
+        childId: 1,
+        type: EnrollmentType.TRIMESTRAL,
+        startDate: '2026-01-15',
+        amount: 2400,
+        areaIds: [1],
+        scheduleDays: [{ dayOfWeek: 1, shift: Shift.MANANA }],
+        initialPayment: {
+          amount: 2400,
+          paymentDate: '2026-01-15',
+          method: 'EFECTIVO',
+          periodStart: '2026-01-15',
+          periodEnd: '2026-04-15',
+        },
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            enrollmentId: 10,
+            childId: 1,
+            paymentDate: expect.any(Date),
+            allocations: {
+              create: [{ enrollmentId: 10, amount: 2400 }],
+            },
+          }),
+        }),
+      );
+    });
+
+    it('rechaza un pago inicial mayor al monto de la inscripción', async () => {
+      const prisma = makePrisma();
+      prisma.child.findUnique.mockResolvedValue({ id: 1 });
+
+      const service = serviceWith(prisma);
+
+      await expect(
+        service.create({
+          childId: 1,
+          type: EnrollmentType.MENSUAL,
+          startDate: '2026-01-15',
+          amount: 750,
+          initialPayment: {
+            amount: 800,
+            paymentDate: '2026-01-15',
+            method: 'EFECTIVO',
+            periodStart: '2026-01-15',
+            periodEnd: '2026-02-14',
+          },
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza el solapamiento con otra inscripción del niño', async () => {
+      const prisma = makePrisma();
+      prisma.child.findUnique.mockResolvedValue({ id: 1 });
+      prisma.enrollment.findFirst.mockResolvedValue({ id: 99 });
+
+      const service = serviceWith(prisma);
+
+      await expect(
+        service.create({
+          childId: 1,
+          type: EnrollmentType.MENSUAL,
+          startDate: '2026-01-15',
+          amount: 750,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.enrollment.create).not.toHaveBeenCalled();
+    });
+
+    it('permite la reinscripción continua el día siguiente al fin', async () => {
+      const prisma = makePrisma();
+      prisma.child.findUnique.mockResolvedValue({ id: 1 });
+      prisma.enrollment.findFirst.mockResolvedValue(null);
+      prisma.enrollment.create.mockResolvedValue({ id: 12 });
+      prisma.enrollment.findUnique.mockResolvedValue(
+        enrollmentRow({ id: 12, startDate: new Date('2026-04-16T12:00:00Z') }),
       );
 
       const service = serviceWith(prisma);
       const result = await service.create({
         childId: 1,
-        startDate: '2026-01-15',
-        durationDays: 90,
-        monthlyFee: 1000,
-        areaIds: [1],
-        scheduleDays: [{ dayOfWeek: 1, shift: Shift.MANANA }],
-        initialPayment: {
-          amount: 1000,
-          method: 'EFECTIVO',
-          periodStart: '2026-01-01',
-          periodEnd: '2026-01-31',
-        },
+        type: EnrollmentType.MENSUAL,
+        startDate: '2026-04-16',
+        amount: 800,
       });
 
+      expect(result).toMatchObject({ id: 12 });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-      expect(prisma.enrollment.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            endDate: expect.any(Date),
-            durationDays: 90,
-          }),
-        }),
-      );
-      expect(prisma.payment.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ enrollmentId: 10, childId: 1 }),
-        }),
-      );
-      expect(result).toMatchObject({ id: 10, facturado: 4000, pagado: 0 });
     });
 
     it('rechaza días repetidos antes de tocar la base', async () => {
@@ -160,9 +315,9 @@ describe('EnrollmentsService', () => {
       await expect(
         service.create({
           childId: 1,
+          type: EnrollmentType.TRIMESTRAL,
           startDate: '2026-01-15',
-          durationDays: 90,
-          monthlyFee: 1000,
+          amount: 1000,
           scheduleDays: [
             { dayOfWeek: 1, shift: Shift.MANANA },
             { dayOfWeek: 1, shift: Shift.TARDE },
@@ -171,23 +326,6 @@ describe('EnrollmentsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(prisma.enrollment.create).not.toHaveBeenCalled();
-    });
-
-    it('rechaza si el niño ya tiene una inscripción activa', async () => {
-      const prisma = makePrisma();
-      prisma.child.findUnique.mockResolvedValue({ id: 1 });
-      prisma.enrollment.findFirst.mockResolvedValue({ id: 99 });
-
-      const service = serviceWith(prisma);
-
-      await expect(
-        service.create({
-          childId: 1,
-          startDate: '2026-01-15',
-          durationDays: 90,
-          monthlyFee: 1000,
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rechaza un área inexistente', async () => {
@@ -200,9 +338,9 @@ describe('EnrollmentsService', () => {
       await expect(
         service.create({
           childId: 1,
+          type: EnrollmentType.TRIMESTRAL,
           startDate: '2026-01-15',
-          durationDays: 90,
-          monthlyFee: 1000,
+          amount: 1000,
           areaIds: [42],
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -217,14 +355,14 @@ describe('EnrollmentsService', () => {
       await expect(
         service.create({
           childId: 404,
+          type: EnrollmentType.MENSUAL,
           startDate: '2026-01-15',
-          durationDays: 90,
-          monthlyFee: 1000,
+          amount: 750,
         }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('propaga el fallo del pago inicial sin dejar la inscripción', async () => {
+    it('propaga el fallo del pago inicial (todo o nada)', async () => {
       const prisma = makePrisma();
       prisma.child.findUnique.mockResolvedValue({ id: 1 });
       prisma.enrollment.findFirst.mockResolvedValue(null);
@@ -236,13 +374,14 @@ describe('EnrollmentsService', () => {
       await expect(
         service.create({
           childId: 1,
+          type: EnrollmentType.TRIMESTRAL,
           startDate: '2026-01-15',
-          durationDays: 90,
-          monthlyFee: 1000,
+          amount: 2400,
           initialPayment: {
             amount: 1000,
+            paymentDate: '2026-01-15',
             method: 'EFECTIVO',
-            periodStart: '2026-01-01',
+            periodStart: '2026-01-15',
             periodEnd: '2026-01-31',
           },
         }),
@@ -251,18 +390,19 @@ describe('EnrollmentsService', () => {
   });
 
   describe('findAll', () => {
-    it('agrupa por niño y suma los totales de la cabecera', async () => {
+    it('suma amount sin multiplicar por meses', async () => {
       const prisma = makePrisma();
       prisma.enrollment.findMany.mockResolvedValue([
         enrollmentRow({
           id: 1,
-          payments: [{ amount: new Prisma.Decimal(500) }],
+          amount: new Prisma.Decimal(2400),
+          allocations: [{ amount: new Prisma.Decimal(500) }],
         }),
         enrollmentRow({
           id: 2,
-          startDate: new Date('2025-01-10T12:00:00Z'),
-          endDate: new Date('2025-02-10T12:00:00Z'),
-          payments: [],
+          type: EnrollmentType.MENSUAL,
+          amount: new Prisma.Decimal(750),
+          allocations: [],
         }),
       ]);
 
@@ -270,14 +410,11 @@ describe('EnrollmentsService', () => {
       const result = await service.findAll({} as never);
 
       expect(result.groups).toHaveLength(1);
-      expect(result.meta.total).toBe(1);
-      expect(result.meta.totalPages).toBe(1);
       expect(result.groups[0].totals).toMatchObject({
-        facturado: 6000,
+        total: 3150,
         pagado: 500,
-        saldo: 5500,
+        saldo: 2650,
       });
-      expect(result.groups[0].enrollments).toHaveLength(2);
     });
 
     it('pagina por niños y aplica búsqueda al where', async () => {
@@ -311,10 +448,12 @@ describe('EnrollmentsService', () => {
   });
 
   describe('getPrefill', () => {
-    it('propone el endDate anterior como fecha de la nueva inscripción', async () => {
+    it('propone el día siguiente al endDate anterior y conserva monto histórico', async () => {
       const prisma = makePrisma();
       prisma.enrollment.findFirst.mockResolvedValue(
         enrollmentRow({
+          type: EnrollmentType.TRIMESTRAL,
+          amount: new Prisma.Decimal(2400),
           endDate: new Date('2026-04-15T12:00:00Z'),
           areas: [{ areaId: 3 }],
           scheduleDays: [{ dayOfWeek: 2, shift: Shift.TARDE }],
@@ -325,8 +464,9 @@ describe('EnrollmentsService', () => {
       const result = await service.getPrefill(1);
 
       expect(result).toMatchObject({
-        monthlyFee: 1000,
-        startDate: '2026-04-15',
+        type: EnrollmentType.TRIMESTRAL,
+        amount: 2400,
+        startDate: '2026-04-16',
         areaIds: [3],
         scheduleDays: [{ dayOfWeek: 2, shift: Shift.TARDE }],
       });
@@ -344,7 +484,72 @@ describe('EnrollmentsService', () => {
     });
   });
 
+  describe('getSummary', () => {
+    it('identifica la vigente y separa las deudas anteriores', async () => {
+      const prisma = makePrisma();
+      prisma.child.findUnique.mockResolvedValue({ id: 1 });
+      prisma.enrollment.findMany.mockResolvedValue([
+        enrollmentRow({
+          id: 1,
+          type: EnrollmentType.MENSUAL,
+          status: EnrollmentStatus.RETIRADO,
+          startDate: new Date('2025-01-01T12:00:00Z'),
+          endDate: new Date('2025-01-31T12:00:00Z'),
+          amount: new Prisma.Decimal(500),
+          allocations: [{ amount: new Prisma.Decimal(200) }],
+        }),
+        enrollmentRow({
+          id: 2,
+          startDate: new Date('2000-01-15T12:00:00Z'),
+          endDate: new Date('2999-04-15T12:00:00Z'),
+          amount: new Prisma.Decimal(900),
+          allocations: [],
+        }),
+      ]);
+
+      const service = serviceWith(prisma);
+      const result = await service.getSummary(1);
+
+      expect(result.active).toBeTruthy();
+      expect(result.active?.saldo).toBe(900);
+      expect(result.previousDebts).toHaveLength(1);
+      expect(result.previousDebts[0]).toMatchObject({ saldo: 300 });
+    });
+  });
+
   describe('update', () => {
+    it('recalcula la duración y el fin al cambiar el tipo', async () => {
+      const prisma = makePrisma();
+      prisma.enrollment.findUnique
+        .mockResolvedValueOnce(enrollmentRow())
+        .mockResolvedValueOnce(enrollmentRow());
+      prisma.enrollment.update.mockResolvedValue(enrollmentRow());
+
+      const service = serviceWith(prisma);
+      await service.update(1, { type: EnrollmentType.SEMESTRAL });
+
+      expect(prisma.enrollment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: EnrollmentType.SEMESTRAL,
+            durationDays: 180,
+          }),
+        }),
+      );
+    });
+
+    it('rechaza una edición que genera solapamiento', async () => {
+      const prisma = makePrisma();
+      prisma.enrollment.findUnique.mockResolvedValueOnce(enrollmentRow());
+      prisma.enrollment.findFirst.mockResolvedValue({ id: 77 });
+
+      const service = serviceWith(prisma);
+
+      await expect(
+        service.update(1, { startDate: '2026-02-01' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
     it('reemplaza la agenda y las áreas al recibirlas', async () => {
       const prisma = makePrisma();
       prisma.enrollment.findUnique

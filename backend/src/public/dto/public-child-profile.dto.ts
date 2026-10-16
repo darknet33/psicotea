@@ -1,3 +1,11 @@
+import {
+  AttendanceStatus,
+  EnrollmentStatus,
+  EnrollmentType,
+  ReportPeriod,
+  ReportType,
+} from '@prisma/client';
+
 /**
  * Datos del tutor principal que un padre puede ver en la página pública.
  * Deliberadamente no incluye `email` ni `carnet` del tutor.
@@ -11,13 +19,59 @@ export interface PublicPrimaryTutorDto {
 }
 
 /**
- * Informe publicado del niño. Solo título y periodo: el `content` es un dato
- * clínico y no se expone públicamente.
+ * Inscripción del niño con su saldo. Se expone porque el padre necesita saber
+ * qué pagó y qué debe.
+ */
+export interface PublicEnrollmentDto {
+  id: number;
+  type: EnrollmentType | null;
+  startDate: string;
+  endDate: string | null;
+  status: EnrollmentStatus;
+  amount: number;
+  totalPaid: number;
+  balance: number;
+  areas: string[];
+}
+
+/**
+ * Registro de asistencia del niño.
+ */
+export interface PublicAttendanceDto {
+  date: string;
+  status: AttendanceStatus;
+  notes: string | null;
+}
+
+/**
+ * Actividad registrada por un especialista.
+ */
+export interface PublicActivityDto {
+  date: string;
+  title: string;
+  description: string | null;
+}
+
+export interface PublicAttachmentDto {
+  name: string;
+  fileUrl: string;
+  mimeType: string | null;
+}
+
+/**
+ * Informe publicado del niño. El dueño decidió exponer el `content` y el
+ * `summary` en el portal público (ver `public-child-portal-enhancement`).
  */
 export interface PublicReportDto {
+  id: number;
   title: string;
+  type: ReportType;
+  reportPeriod: ReportPeriod;
   periodStart: string;
   periodEnd: string;
+  content: string;
+  summary: string | null;
+  attachments: PublicAttachmentDto[];
 }
 
 /**
@@ -40,6 +94,11 @@ export interface PublicChildProfileDto {
   /** Edad en años, calculada en el backend a partir de dateOfBirth. */
   age: number;
   photoUrl: string;
+  /** Diagnóstico del niño. Expuesto con el QR por decisión del dueño. */
+  diagnostico: string;
   primaryTutor: PublicPrimaryTutorDto | null;
+  enrollments: PublicEnrollmentDto[];
+  attendances: PublicAttendanceDto[];
+  activities: PublicActivityDto[];
   reports: PublicReportDto[];
 }

@@ -8,6 +8,7 @@ import {
   ClipboardList,
   CreditCard,
   CalendarCheck,
+  CalendarDays,
   Activity,
   FileText,
   BriefcaseMedical,
@@ -83,6 +84,12 @@ const NAV_SECTIONS: NavSection[] = [
         label: "Asistencias",
         icon: CalendarCheck,
         roles: ["ADMIN", "ESPECIALISTA", "PERSONAL_ADMINISTRATIVO"],
+      },
+      {
+        href: "/planning",
+        label: "Planificación",
+        icon: CalendarDays,
+        roles: ["ADMIN", "ESPECIALISTA"],
       },
       {
         href: "/activities",

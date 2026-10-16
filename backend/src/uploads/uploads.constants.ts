@@ -3,7 +3,17 @@ import { mkdirSync } from 'fs';
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
+export const MAX_DOCUMENT_FILE_SIZE = 10 * 1024 * 1024;
+
 export const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+
+/** Documentos adjuntos a informes: PDF (y también imágenes escaneadas). */
+export const ALLOWED_DOCUMENT_MIME_TYPES = [
+  'application/pdf',
   'image/jpeg',
   'image/png',
   'image/webp',
@@ -13,6 +23,7 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
+  'application/pdf': '.pdf',
 };
 
 export function getUploadsDir(): string {
